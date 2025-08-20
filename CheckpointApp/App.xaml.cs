@@ -1,13 +1,14 @@
-﻿using System.Windows;
+﻿using System.Linq;
+using System.Windows;
 using CheckpointApp.DataAccess;
-using CheckpointApp.Views;
 using CheckpointApp.ViewModels;
+using CheckpointApp.Views;
 
 namespace CheckpointApp
 {
     public partial class App : Application
     {
-        private DatabaseService _databaseService;
+        private readonly DatabaseService _databaseService;
 
         public App()
         {
@@ -22,45 +23,50 @@ namespace CheckpointApp
 
             if (userCount == 0)
             {
-                // Если пользователей нет, открываем окно создания первого администратора
-                var firstAdminWindow = new FirstAdminWindow();
-                var firstAdminViewModel = new FirstAdminViewModel(_databaseService);
-                firstAdminWindow.DataContext = firstAdminViewModel;
+                var firstAdminWindow = new FirstAdminWindow
+                {
+                    DataContext = new FirstAdminViewModel(_databaseService)
+                };
 
-                if (firstAdminWindow.ShowDialog() == true)
+                if (firstAdminWindow.ShowDialog() != true)
                 {
-                    // После успешного создания админа, показываем окно входа
-                    ShowLoginWindow();
-                }
-                else
-                {
-                    // Если пользователь закрыл окно, завершаем приложение
+                    // Если пользователь не создал администратора, закрываем приложение
                     Shutdown();
+                    return;
                 }
             }
-            else
-            {
-                ShowLoginWindow();
-            }
+
+            // В любом случае после проверки показываем окно входа
+            ShowLoginWindow();
         }
 
         private void ShowLoginWindow()
         {
-            var loginWindow = new LoginWindow();
-            var loginViewModel = new LoginViewModel(_databaseService);
-            loginWindow.DataContext = loginViewModel;
+            var loginWindow = new LoginWindow
+            {
+                DataContext = new LoginViewModel(_databaseService)
+            };
 
             if (loginWindow.ShowDialog() == true)
             {
-                // Если логин успешен, открываем главное окно
-                var mainWindow = new MainWindow();
-                // Передаем залогиненного пользователя в MainViewModel
-                var mainViewModel = new MainViewModel(_databaseService, loginViewModel.LoggedInUser);
-                mainWindow.DataContext = mainViewModel;
+                // Если логин успешен, получаем ViewModel, который теперь содержит данные о пользователе
+                var loginViewModel = (LoginViewModel)loginWindow.DataContext;
+
+                // Создаем главное окно
+                var mainWindow = new MainWindow
+                {
+                    DataContext = new MainViewModel(_databaseService, loginViewModel.LoggedInUser!)
+                };
+
+                // --- ВАЖНОЕ ИСПРАВЛЕНИЕ ---
+                // Назначаем созданное окно главным окном приложения.
+                // Теперь приложение будет работать, пока это окно не закроется.
+                Current.MainWindow = mainWindow;
                 mainWindow.Show();
             }
             else
             {
+                // Если пользователь закрыл окно входа, завершаем приложение
                 Shutdown();
             }
         }
