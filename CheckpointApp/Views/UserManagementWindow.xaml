@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Óïðàâëåíèå ïîëüçîâàòåëÿìè" Height="500" Width="700"
+        Title="Ð£Ð¿Ñ€Ð°Ð²Ð»ÐµÐ½Ð¸Ðµ Ð¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»ÑÐ¼Ð¸" Height="500" Width="700"
         WindowStartupLocation="CenterOwner">
     <Grid Margin="10">
         <Grid.ColumnDefinitions>
@@ -12,22 +12,21 @@
             <ColumnDefinition Width="250"/>
         </Grid.ColumnDefinitions>
 
-        <!-- ÑÏÈÑÎÊ ÏÎËÜÇÎÂÀÒÅËÅÉ -->
         <ListView Grid.Column="0" Margin="0,0,10,0" ItemsSource="{Binding Users}" SelectedItem="{Binding SelectedUser}">
             <ListView.View>
                 <GridView>
                     <GridViewColumn Header="ID" DisplayMemberBinding="{Binding ID}" Width="50"/>
-                    <GridViewColumn Header="Èìÿ ïîëüçîâàòåëÿ" DisplayMemberBinding="{Binding Username}" Width="200"/>
-                    <GridViewColumn Header="Ðîëü" Width="150">
+                    <GridViewColumn Header="Ð˜Ð¼Ñ Ð¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»Ñ" DisplayMemberBinding="{Binding Username}" Width="200"/>
+                    <GridViewColumn Header="Ð Ð¾Ð»ÑŒ" Width="150">
                         <GridViewColumn.CellTemplate>
                             <DataTemplate>
                                 <TextBlock>
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
-                                            <Setter Property="Text" Value="Îïåðàòîð"/>
+                                            <Setter Property="Text" Value="ÐžÐ¿ÐµÑ€Ð°Ñ‚Ð¾Ñ€"/>
                                             <Style.Triggers>
                                                 <DataTrigger Binding="{Binding IsAdmin}" Value="True">
-                                                    <Setter Property="Text" Value="Àäìèíèñòðàòîð"/>
+                                                    <Setter Property="Text" Value="ÐÐ´Ð¼Ð¸Ð½Ð¸ÑÑ‚Ñ€Ð°Ñ‚Ð¾Ñ€"/>
                                                     <Setter Property="FontWeight" Value="Bold"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
@@ -41,20 +40,19 @@
             </ListView.View>
         </ListView>
 
-        <!-- ÏÀÍÅËÜ ÓÏÐÀÂËÅÍÈß -->
         <StackPanel Grid.Column="1">
-            <GroupBox Header="Äîáàâèòü íîâîãî ïîëüçîâàòåëÿ" Padding="5">
+            <GroupBox Header="Ð”Ð¾Ð±Ð°Ð²Ð¸Ñ‚ÑŒ Ð½Ð¾Ð²Ð¾Ð³Ð¾ Ð¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»Ñ" Padding="5">
                 <StackPanel>
-                    <Label Content="Èìÿ ïîëüçîâàòåëÿ:"/>
+                    <Label Content="Ð˜Ð¼Ñ Ð¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»Ñ:"/>
                     <TextBox Text="{Binding NewUsername, UpdateSourceTrigger=PropertyChanged}"/>
-                    <Label Content="Ïàðîëü:"/>
+                    <Label Content="ÐŸÐ°Ñ€Ð¾Ð»ÑŒ:"/>
                     <PasswordBox x:Name="PasswordBox"/>
-                    <CheckBox Content="Ïðàâà àäìèíèñòðàòîðà" Margin="0,10,0,0" IsChecked="{Binding IsNewUserAdmin}"/>
-                    <Button Content="Äîáàâèòü ïîëüçîâàòåëÿ" Command="{Binding AddUserCommand}" CommandParameter="{Binding ElementName=PasswordBox}" Margin="0,15,0,0"/>
+                    <CheckBox Content="ÐŸÑ€Ð°Ð²Ð° Ð°Ð´Ð¼Ð¸Ð½Ð¸ÑÑ‚Ñ€Ð°Ñ‚Ð¾Ñ€Ð°" Margin="0,10,0,0" IsChecked="{Binding IsNewUserAdmin}"/>
+                    <Button Content="Ð”Ð¾Ð±Ð°Ð²Ð¸Ñ‚ÑŒ Ð¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»Ñ" Command="{Binding AddUserCommand}" CommandParameter="{Binding ElementName=PasswordBox}" Margin="0,15,0,0"/>
                 </StackPanel>
             </GroupBox>
 
-            <Button Content="Óäàëèòü âûáðàííîãî" Command="{Binding DeleteUserCommand}" Margin="0,20,0,0" Background="#FFC1C1"/>
+            <Button Content="Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ Ð²Ñ‹Ð±Ñ€Ð°Ð½Ð½Ð¾Ð³Ð¾" Command="{Binding DeleteUserCommand}" Margin="0,20,0,0" Background="#FFC1C1"/>
         </StackPanel>
     </Grid>
 </Window>

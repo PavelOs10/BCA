@@ -3,32 +3,30 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:ScottPlot="clr-namespace:ScottPlot;assembly=ScottPlot.WPF"
+        xmlns:ScottPlot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
         mc:Ignorable="d"
-        Title="Àíàëèòèêà ïîãðàíè÷íûõ ïåðåñå÷åíèé" Height="800" Width="1200"
+        Title="ÐÐ½Ð°Ð»Ð¸Ñ‚Ð¸ÐºÐ° Ð¿Ð¾Ð³Ñ€Ð°Ð½Ð¸Ñ‡Ð½Ñ‹Ñ… Ð¿ÐµÑ€ÐµÑÐµÑ‡ÐµÐ½Ð¸Ð¹" Height="800" Width="1200"
         WindowStartupLocation="CenterOwner">
     <DockPanel>
-        <!-- ÏÀÍÅËÜ ÓÏÐÀÂËÅÍÈß -->
         <Border DockPanel.Dock="Top" Padding="5" Margin="5" BorderBrush="Gray" BorderThickness="1">
             <StackPanel Orientation="Horizontal">
-                <TextBlock Text="Ïåðèîä àíàëèçà:" VerticalAlignment="Center" Margin="5"/>
+                <TextBlock Text="ÐŸÐµÑ€Ð¸Ð¾Ð´ Ð°Ð½Ð°Ð»Ð¸Ð·Ð°:" VerticalAlignment="Center" Margin="5"/>
                 <DatePicker SelectedDate="{Binding StartDate}" VerticalAlignment="Center" Margin="5"/>
                 <TextBlock Text="-" VerticalAlignment="Center"/>
                 <DatePicker SelectedDate="{Binding EndDate}" VerticalAlignment="Center" Margin="5"/>
-                <Button Content="Ñôîðìèðîâàòü îò÷åò" Command="{Binding GenerateReportCommand}" Margin="20,5,5,5" Padding="10,2"/>
+                <Button Content="Ð¡Ñ„Ð¾Ñ€Ð¼Ð¸Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ Ð¾Ñ‚Ñ‡ÐµÑ‚" Command="{Binding GenerateReportCommand}" Margin="20,5,5,5" Padding="10,2"/>
                 <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Margin="10,0" FontStyle="Italic"/>
             </StackPanel>
         </Border>
 
-        <!-- ÂÊËÀÄÊÈ Ñ ÎÒ×ÅÒÀÌÈ -->
         <TabControl Margin="5">
-            <TabItem Header="Îáùàÿ ñâîäêà">
+            <TabItem Header="ÐžÐ±Ñ‰Ð°Ñ ÑÐ²Ð¾Ð´ÐºÐ°">
                 <TextBlock Text="{Binding SummaryText}" Margin="15" FontSize="16" TextWrapping="Wrap"/>
             </TabItem>
-            <TabItem Header="Äèíàìèêà">
+            <TabItem Header="Ð”Ð¸Ð½Ð°Ð¼Ð¸ÐºÐ°">
                 <ScottPlot:WpfPlot Name="DynamicsPlot"/>
             </TabItem>
-            <TabItem Header="Ãåîãðàôèÿ">
+            <TabItem Header="Ð“ÐµÐ¾Ð³Ñ€Ð°Ñ„Ð¸Ñ">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -38,10 +36,10 @@
                     <ScottPlot:WpfPlot Name="TopCitizenshipBarPlot" Grid.Column="1"/>
                 </Grid>
             </TabItem>
-            <TabItem Header="Íàãðóçêà ïî âðåìåíè">
+            <TabItem Header="ÐÐ°Ð³Ñ€ÑƒÐ·ÐºÐ° Ð¿Ð¾ Ð²Ñ€ÐµÐ¼ÐµÐ½Ð¸">
                 <ScottPlot:WpfPlot Name="HeatmapPlot"/>
             </TabItem>
-            <TabItem Header="Ðåéòèíã îïåðàòîðîâ">
+            <TabItem Header="Ð ÐµÐ¹Ñ‚Ð¸Ð½Ð³ Ð¾Ð¿ÐµÑ€Ð°Ñ‚Ð¾Ñ€Ð¾Ð²">
                 <ScottPlot:WpfPlot Name="OperatorsPlot"/>
             </TabItem>
         </TabControl>

@@ -6,27 +6,20 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CheckpointApp.DataAccess;
 using CheckpointApp.Models;
-using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace CheckpointApp.ViewModels
 {
-    // Используем Dictionary для группировки
     using GroupedPersonsCollection = Dictionary<string, List<PersonInZone>>;
-
     public partial class PeopleInZoneViewModel : ObservableObject
     {
         private readonly DatabaseService _databaseService;
-
-        [ObservableProperty]
-        private GroupedPersonsCollection _groupedPersons;
-
-        [ObservableProperty]
-        private string _statusText;
-
+        [ObservableProperty] private GroupedPersonsCollection _groupedPersons;
+        [ObservableProperty] private string _statusText;
         public PeopleInZoneViewModel(DatabaseService databaseService)
         {
             _databaseService = databaseService;
-            GroupedPersons = new GroupedPersonsCollection();
+            _groupedPersons = new GroupedPersonsCollection();
+            _statusText = "";
             _ = LoadDataAsync();
         }
 

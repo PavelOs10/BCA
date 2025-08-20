@@ -4,51 +4,49 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Ëèöà â ïîãðàíçîíå" Height="700" Width="1000"
+        Title="Ð›Ð¸Ñ†Ð° Ð² Ð¿Ð¾Ð³Ñ€Ð°Ð½Ð·Ð¾Ð½Ðµ" Height="700" Width="1000"
         WindowStartupLocation="CenterOwner">
-    <DockPanel>
-        <StatusBar DockPanel.Dock="Bottom">
-            <StatusBarItem>
-                <TextBlock Text="{Binding StatusText}"/>
-            </StatusBarItem>
-        </StatusBar>
+	<DockPanel>
+		<StatusBar DockPanel.Dock="Bottom">
+			<StatusBarItem>
+				<TextBlock Text="{Binding StatusText}"/>
+			</StatusBarItem>
+		</StatusBar>
 
-        <ToolBarTray DockPanel.Dock="Top">
-            <ToolBar>
-                <Button Content="Îáíîâèòü" Command="{Binding LoadDataCommand}"/>
-            </ToolBar>
-        </ToolBarTray>
+		<ToolBarTray DockPanel.Dock="Top">
+			<ToolBar>
+				<Button Content="ÐžÐ±Ð½Ð¾Ð²Ð¸Ñ‚ÑŒ" Command="{Binding LoadDataCommand}" Padding="5"/>
+			</ToolBar>
+		</ToolBarTray>
 
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <!-- ItemsControl äëÿ îòîáðàæåíèÿ ãðóïï ïî ãîðîäàì -->
-            <ItemsControl ItemsSource="{Binding GroupedPersons}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <GroupBox Margin="5" Padding="5">
-                            <GroupBox.Header>
-                                <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding Key}" FontWeight="Bold" FontSize="14"/>
-                                    <TextBlock Text="{Binding Value.Count, StringFormat=' (Êîë-âî: {0})'}" Margin="10,0,0,0"/>
-                                </StackPanel>
-                            </GroupBox.Header>
+		<ScrollViewer VerticalScrollBarVisibility="Auto">
+			<ItemsControl ItemsSource="{Binding GroupedPersons}">
+				<ItemsControl.ItemTemplate>
+					<DataTemplate>
+						<GroupBox Margin="5" Padding="5">
+							<GroupBox.Header>
+								<StackPanel Orientation="Horizontal">
+									<TextBlock Text="{Binding Key}" FontWeight="Bold" FontSize="14"/>
+									<TextBlock Text="{Binding Value.Count, StringFormat=' (ÐšÐ¾Ð»-Ð²Ð¾: {0})'}" Margin="10,0,0,0"/>
+								</StackPanel>
+							</GroupBox.Header>
 
-                            <!-- ListView äëÿ îòîáðàæåíèÿ ëþäåé â ãðóïïå -->
-                            <ListView ItemsSource="{Binding Value}" BorderThickness="0">
-                                <ListView.View>
-                                    <GridView>
-                                        <GridViewColumn Header="ÔÈÎ" DisplayMemberBinding="{Binding FullName}" Width="250"/>
-                                        <GridViewColumn Header="Äàòà ðîæä." DisplayMemberBinding="{Binding Dob}" Width="100"/>
-                                        <GridViewColumn Header="Ïàñïîðò" DisplayMemberBinding="{Binding PassportData}" Width="120"/>
-                                        <GridViewColumn Header="Ãðàæäàíñòâî" DisplayMemberBinding="{Binding Citizenship}" Width="120"/>
-                                        <GridViewColumn Header="Âðåìÿ âúåçäà" DisplayMemberBinding="{Binding Timestamp}" Width="150"/>
-                                        <GridViewColumn Header="ÒÑ" DisplayMemberBinding="{Binding VehicleInfo}" Width="150"/>
-                                    </GridView>
-                                </ListView.View>
-                            </ListView>
-                        </GroupBox>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
-    </DockPanel>
+							<ListView ItemsSource="{Binding Value}" BorderThickness="0">
+								<ListView.View>
+									<GridView>
+										<GridViewColumn Header="Ð¤Ð˜Ðž" DisplayMemberBinding="{Binding FullName}" Width="250"/>
+										<GridViewColumn Header="Ð”Ð°Ñ‚Ð° Ñ€Ð¾Ð¶Ð´." DisplayMemberBinding="{Binding Dob}" Width="100"/>
+										<GridViewColumn Header="ÐŸÐ°ÑÐ¿Ð¾Ñ€Ñ‚" DisplayMemberBinding="{Binding PassportData}" Width="120"/>
+										<GridViewColumn Header="Ð“Ñ€Ð°Ð¶Ð´Ð°Ð½ÑÑ‚Ð²Ð¾" DisplayMemberBinding="{Binding Citizenship}" Width="120"/>
+										<GridViewColumn Header="Ð’Ñ€ÐµÐ¼Ñ Ð²ÑŠÐµÐ·Ð´Ð°" DisplayMemberBinding="{Binding Timestamp}" Width="150"/>
+										<GridViewColumn Header="Ð¢Ð¡" DisplayMemberBinding="{Binding VehicleInfo}" Width="150"/>
+									</GridView>
+								</ListView.View>
+							</ListView>
+						</GroupBox>
+					</DataTemplate>
+				</ItemsControl.ItemTemplate>
+			</ItemsControl>
+		</ScrollViewer>
+	</DockPanel>
 </Window>

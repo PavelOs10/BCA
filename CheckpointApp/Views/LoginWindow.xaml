@@ -3,36 +3,35 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:CheckpointApp.Views"
         mc:Ignorable="d"
-        Title="Âõîä â ñèñòåìó 'Êîíòðîëüíûé ïóíêò'" Height="171" Width="400"
+        Title="Ð’Ñ…Ð¾Ð´ Ð² ÑÐ¸ÑÑ‚ÐµÐ¼Ñƒ 'ÐšÐ¾Ð½Ñ‚Ñ€Ð¾Ð»ÑŒÐ½Ñ‹Ð¹ Ð¿ÑƒÐ½ÐºÑ‚'" Height="250" Width="400"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
-    <Grid Margin="15">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
+	<Grid Margin="15">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition Height="*"/>
+			<RowDefinition Height="Auto"/>
+		</Grid.RowDefinitions>
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="Auto"/>
+			<ColumnDefinition Width="*"/>
+		</Grid.ColumnDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Àâòîðèçàöèÿ" FontSize="16" FontWeight="Bold" Margin="0,0,0,20"/>
+		<TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="ÐÐ²Ñ‚Ð¾Ñ€Ð¸Ð·Ð°Ñ†Ð¸Ñ" FontSize="16" FontWeight="Bold" Margin="0,0,0,20"/>
 
-        <Label Grid.Row="1" Grid.Column="0" Content="Èìÿ ïîëüçîâàòåëÿ:" VerticalAlignment="Center"/>
-        <TextBox Grid.Row="1" Grid.Column="1" Margin="5" VerticalAlignment="Center" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
+		<Label Grid.Row="1" Grid.Column="0" Content="Ð˜Ð¼Ñ Ð¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»Ñ:" VerticalAlignment="Center"/>
+		<TextBox Grid.Row="1" Grid.Column="1" Margin="5" VerticalAlignment="Center" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
 
-        <Label Grid.Row="2" Grid.Column="0" Content="Ïàðîëü:" VerticalAlignment="Center"/>
-        <PasswordBox x:Name="PasswordBox" Grid.Row="2" Grid.Column="1" Margin="5" VerticalAlignment="Center"/>
+		<Label Grid.Row="2" Grid.Column="0" Content="ÐŸÐ°Ñ€Ð¾Ð»ÑŒ:" VerticalAlignment="Center"/>
+		<PasswordBox x:Name="PasswordBox" Grid.Row="2" Grid.Column="1" Margin="5" VerticalAlignment="Center"/>
 
-        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ErrorMessage}" Foreground="Red" TextWrapping="Wrap" VerticalAlignment="Center"/>
+		<TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ErrorMessage}" Foreground="Red" TextWrapping="Wrap" VerticalAlignment="Center"/>
 
-        <StackPanel Grid.Row="4" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Ðåãèñòðàöèÿ" Width="100" Margin="0,0,10,0" Command="{Binding RegisterCommand}" Height="19"/>
-            <Button Content="Âõîä" Width="100" Margin="5" IsDefault="True" Command="{Binding LoginCommand}" CommandParameter="{Binding ElementName=PasswordBox}" Height="19"/>
-        </StackPanel>
-    </Grid>
+		<StackPanel Grid.Row="4" Grid.ColumnSpan="2" Orientation="Horizontal" HorizontalAlignment="Right">
+			<Button Content="Ð ÐµÐ³Ð¸ÑÑ‚Ñ€Ð°Ñ†Ð¸Ñ" Width="100" Margin="0,0,10,0" Command="{Binding RegisterCommand}"/>
+			<Button Content="Ð’Ñ…Ð¾Ð´" Width="100" Margin="5" IsDefault="True" Command="{Binding LoginCommand}" CommandParameter="{Binding ElementName=PasswordBox}"/>
+		</StackPanel>
+	</Grid>
 </Window>

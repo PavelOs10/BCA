@@ -5,60 +5,54 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
         mc:Ignorable="d"
-        Title="Òîâàðû è Ãðóçû äëÿ òåêóùåãî ïåðåñå÷åíèÿ" Height="450" Width="600"
+        Title="Ð¢Ð¾Ð²Ð°Ñ€Ñ‹ Ð¸ Ð“Ñ€ÑƒÐ·Ñ‹ Ð´Ð»Ñ Ñ‚ÐµÐºÑƒÑ‰ÐµÐ³Ð¾ Ð¿ÐµÑ€ÐµÑÐµÑ‡ÐµÐ½Ð¸Ñ" Height="450" Width="600"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize">
-    <Grid Margin="10">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+	<Grid Margin="10">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition Height="*"/>
+			<RowDefinition Height="Auto"/>
+		</Grid.RowDefinitions>
 
-        <!-- ÔÎÐÌÀ ÄÎÁÀÂËÅÍÈß -->
-        <GroupBox Header="Äîáàâèòü òîâàð" Grid.Row="0" Padding="5">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+		<GroupBox Header="Ð”Ð¾Ð±Ð°Ð²Ð¸Ñ‚ÑŒ Ñ‚Ð¾Ð²Ð°Ñ€" Grid.Row="0" Padding="5">
+			<Grid>
+				<Grid.ColumnDefinitions>
+					<ColumnDefinition Width="*"/>
+					<ColumnDefinition Width="Auto"/>
+					<ColumnDefinition Width="Auto"/>
+					<ColumnDefinition Width="Auto"/>
+				</Grid.ColumnDefinitions>
+				<Grid.RowDefinitions>
+					<RowDefinition Height="Auto"/>
+					<RowDefinition Height="Auto"/>
+				</Grid.RowDefinitions>
 
-                <Label Grid.Row="0" Grid.Column="0" Content="Íàèìåíîâàíèå:"/>
-                <TextBox Grid.Row="1" Grid.Column="0" Margin="2" Text="{Binding NewGoodDescription, UpdateSourceTrigger=PropertyChanged}"/>
+				<Label Grid.Row="0" Grid.Column="0" Content="ÐÐ°Ð¸Ð¼ÐµÐ½Ð¾Ð²Ð°Ð½Ð¸Ðµ:"/>
+				<TextBox Grid.Row="1" Grid.Column="0" Margin="2" Text="{Binding NewGoodDescription, UpdateSourceTrigger=PropertyChanged}"/>
 
-                <Label Grid.Row="0" Grid.Column="1" Content="Êîë-âî:"/>
-                <!-- Èñïîëüçóåì ñïåöèàëüíûé êîíòðîë äëÿ ÷èñåë -->
-                <xctk:DoubleUpDown Grid.Row="1" Grid.Column="1" Margin="2" Width="80" Value="{Binding NewGoodQuantity}"/>
+				<Label Grid.Row="0" Grid.Column="1" Content="ÐšÐ¾Ð»-Ð²Ð¾:"/>
+				<xctk:DoubleUpDown Grid.Row="1" Grid.Column="1" Margin="2" Width="80" Value="{Binding NewGoodQuantity}"/>
 
-                <Label Grid.Row="0" Grid.Column="2" Content="Åä. èçì.:"/>
-                <ComboBox Grid.Row="1" Grid.Column="2" Margin="2" Width="80" IsEditable="True" Text="{Binding NewGoodUnit}"
-                          ItemsSource="{Binding CommonUnits}"/>
+				<Label Grid.Row="0" Grid.Column="2" Content="Ð•Ð´. Ð¸Ð·Ð¼.:"/>
+				<ComboBox Grid.Row="1" Grid.Column="2" Margin="2" Width="80" IsEditable="True" Text="{Binding NewGoodUnit}" ItemsSource="{Binding CommonUnits}"/>
 
-                <Button Grid.Row="1" Grid.Column="3" Content="Äîáàâèòü" Width="100" Margin="10,2,2,2" VerticalAlignment="Center"
-                        Command="{Binding AddGoodCommand}"/>
-            </Grid>
-        </GroupBox>
+				<Button Grid.Row="1" Grid.Column="3" Content="Ð”Ð¾Ð±Ð°Ð²Ð¸Ñ‚ÑŒ" Width="100" Margin="10,2,2,2" VerticalAlignment="Center" Command="{Binding AddGoodCommand}"/>
+			</Grid>
+		</GroupBox>
 
-        <!-- ÑÏÈÑÎÊ ÒÎÂÀÐÎÂ -->
-        <ListView Grid.Row="1" Margin="0,10,0,0" ItemsSource="{Binding GoodsList}" SelectedItem="{Binding SelectedGood}">
-            <ListView.View>
-                <GridView>
-                    <GridViewColumn Header="Íàèìåíîâàíèå" DisplayMemberBinding="{Binding Description}" Width="300"/>
-                    <GridViewColumn Header="Êîëè÷åñòâî" DisplayMemberBinding="{Binding Quantity}"/>
-                    <GridViewColumn Header="Åä. èçì." DisplayMemberBinding="{Binding Unit}"/>
-                </GridView>
-            </ListView.View>
-        </ListView>
+		<ListView Grid.Row="1" Margin="0,10,0,0" ItemsSource="{Binding GoodsList}" SelectedItem="{Binding SelectedGood}">
+			<ListView.View>
+				<GridView>
+					<GridViewColumn Header="ÐÐ°Ð¸Ð¼ÐµÐ½Ð¾Ð²Ð°Ð½Ð¸Ðµ" DisplayMemberBinding="{Binding Description}" Width="300"/>
+					<GridViewColumn Header="ÐšÐ¾Ð»Ð¸Ñ‡ÐµÑÑ‚Ð²Ð¾" DisplayMemberBinding="{Binding Quantity}"/>
+					<GridViewColumn Header="Ð•Ð´. Ð¸Ð·Ð¼." DisplayMemberBinding="{Binding Unit}"/>
+				</GridView>
+			</ListView.View>
+		</ListView>
 
-        <!-- ÊÍÎÏÊÈ ÓÏÐÀÂËÅÍÈß -->
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
-            <Button Content="Óäàëèòü âûáðàííîå" Margin="5" Command="{Binding RemoveGoodCommand}"/>
-            <Button Content="OK" Width="100" Margin="5" IsDefault="True" Click="OkButton_Click"/>
-        </StackPanel>
-    </Grid>
+		<StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
+			<Button Content="Ð£Ð´Ð°Ð»Ð¸Ñ‚ÑŒ Ð²Ñ‹Ð±Ñ€Ð°Ð½Ð½Ð¾Ðµ" Margin="5" Command="{Binding RemoveGoodCommand}"/>
+			<Button Content="OK" Width="100" Margin="5" IsDefault="True" Click="OkButton_Click"/>
+		</StackPanel>
+	</Grid>
 </Window>

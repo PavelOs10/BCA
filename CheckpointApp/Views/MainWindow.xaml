@@ -4,16 +4,13 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:viewModels="clr-namespace:CheckpointApp.ViewModels"
-        xmlns:converters="clr-namespace:CheckpointApp.Converters"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=viewModels:MainViewModel}"
         Title="{Binding WindowTitle}" Height="800" Width="1200" WindowStartupLocation="CenterScreen">
 	<Window.Resources>
-		<!-- Добавляем конвертер для скрытия/отображения админских меню -->
 		<BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 	</Window.Resources>
 	<DockPanel>
-		<!-- СТРОКА МЕНЮ -->
 		<Menu DockPanel.Dock="Top">
 			<MenuItem Header="_Файл">
 				<MenuItem Header="_Экспорт в Excel" Command="{Binding ExportToExcelCommand}"/>
@@ -24,12 +21,10 @@
 				<MenuItem Header="Лица в погранзоне" Command="{Binding ShowPeopleInZoneCommand}"/>
 			</MenuItem>
 			<MenuItem Header="_Администрирование" Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}">
+				<MenuItem Header="Аналитика" Command="{Binding ShowAnalyticsCommand}"/>
 				<MenuItem Header="Управление пользователями" Command="{Binding ManageUsersCommand}"/>
 				<MenuItem Header="Список розыска" Command="{Binding ManageWantedListCommand}"/>
 				<MenuItem Header="Список наблюдения" Command="{Binding ManageWatchlistCommand}"/>
-			</MenuItem>
-			<MenuItem Header="_Справка">
-				<MenuItem Header="_О программе"/>
 			</MenuItem>
 		</Menu>
 

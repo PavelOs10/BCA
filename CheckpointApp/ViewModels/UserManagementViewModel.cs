@@ -7,31 +7,23 @@ using CommunityToolkit.Mvvm.Input;
 using CheckpointApp.DataAccess;
 using CheckpointApp.Helpers;
 using CheckpointApp.Models;
-using DocumentFormat.OpenXml.Spreadsheet;
 
 namespace CheckpointApp.ViewModels
 {
     public partial class UserManagementViewModel : ObservableObject
     {
         private readonly DatabaseService _databaseService;
-        private readonly User _currentUser; // Текущий залогиненный пользователь
-
-        [ObservableProperty]
-        private ObservableCollection<User> _users;
-
-        [ObservableProperty]
-        private User _selectedUser;
-
-        // Свойства для формы добавления
-        [ObservableProperty]
-        private string _newUsername;
-        [ObservableProperty]
-        private bool _isNewUserAdmin;
-
+        private readonly User _currentUser;
+        [ObservableProperty] private ObservableCollection<User> _users;
+        [ObservableProperty] private User? _selectedUser;
+        [ObservableProperty] private string _newUsername;
+        [ObservableProperty] private bool _isNewUserAdmin;
         public UserManagementViewModel(DatabaseService databaseService, User currentUser)
         {
             _databaseService = databaseService;
             _currentUser = currentUser;
+            _users = new ObservableCollection<User>();
+            _newUsername = "";
             _ = LoadUsersAsync();
         }
 

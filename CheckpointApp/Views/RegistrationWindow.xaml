@@ -4,34 +4,34 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Ðåãèñòðàöèÿ íîâîãî îïåðàòîðà" Height="176" Width="400"
+        Title="Ð ÐµÐ³Ð¸ÑÑ‚Ñ€Ð°Ñ†Ð¸Ñ Ð½Ð¾Ð²Ð¾Ð³Ð¾ Ð¾Ð¿ÐµÑ€Ð°Ñ‚Ð¾Ñ€Ð°" Height="300" Width="400"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
-    <Grid Margin="15">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="*"/>
-        </Grid.ColumnDefinitions>
+	<Grid Margin="15">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition Height="*"/>
+			<RowDefinition Height="Auto"/>
+		</Grid.RowDefinitions>
+		<Grid.ColumnDefinitions>
+			<ColumnDefinition Width="Auto"/>
+			<ColumnDefinition Width="*"/>
+		</Grid.ColumnDefinitions>
 
-        <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Íîâûé îïåðàòîð" FontSize="16" FontWeight="Bold" Margin="0,0,0,20"/>
+		<TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="ÐÐ¾Ð²Ñ‹Ð¹ Ð¾Ð¿ÐµÑ€Ð°Ñ‚Ð¾Ñ€" FontSize="16" FontWeight="Bold" Margin="0,0,0,20"/>
 
-        <Label Grid.Row="1" Grid.Column="0" Content="Èìÿ ïîëüçîâàòåëÿ:" VerticalAlignment="Center"/>
-        <TextBox Grid.Row="1" Grid.Column="1" Margin="5" VerticalAlignment="Center" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
+		<Label Grid.Row="1" Grid.Column="0" Content="Ð˜Ð¼Ñ Ð¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÐµÐ»Ñ:" VerticalAlignment="Center"/>
+		<TextBox Grid.Row="1" Grid.Column="1" Margin="5" VerticalAlignment="Center" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
 
-        <Label Grid.Row="2" Grid.Column="0" Content="Ïàðîëü:" VerticalAlignment="Center"/>
-        <PasswordBox x:Name="PasswordBox" Grid.Row="2" Grid.Column="1" Margin="5" VerticalAlignment="Center"/>
+		<Label Grid.Row="2" Grid.Column="0" Content="ÐŸÐ°Ñ€Ð¾Ð»ÑŒ:" VerticalAlignment="Center"/>
+		<PasswordBox x:Name="PasswordBox" Grid.Row="2" Grid.Column="1" Margin="5" VerticalAlignment="Center"/>
 
-        <TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ErrorMessage}" Foreground="Red" TextWrapping="Wrap" VerticalAlignment="Center"/>
+		<TextBlock Grid.Row="3" Grid.Column="1" Text="{Binding ErrorMessage}" Foreground="Red" TextWrapping="Wrap" VerticalAlignment="Center"/>
 
-        <StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Çàðåãèñòðèðîâàòü" Width="120" Margin="5" IsDefault="True" Command="{Binding RegisterUserCommand}" CommandParameter="{Binding ElementName=PasswordBox}"/>
-            <Button Content="Îòìåíà" Width="80" Margin="5" IsCancel="True"/>
-        </StackPanel>
-    </Grid>
+		<StackPanel Grid.Row="4" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+			<Button Content="Ð—Ð°Ñ€ÐµÐ³Ð¸ÑÑ‚Ñ€Ð¸Ñ€Ð¾Ð²Ð°Ñ‚ÑŒ" Width="120" Margin="5" IsDefault="True" Command="{Binding RegisterUserCommand}" CommandParameter="{Binding ElementName=PasswordBox}"/>
+			<Button Content="ÐžÑ‚Ð¼ÐµÐ½Ð°" Width="80" Margin="5" IsCancel="True"/>
+		</StackPanel>
+	</Grid>
 </Window>

@@ -8,7 +8,6 @@ using CommunityToolkit.Mvvm.Input;
 using CheckpointApp.DataAccess;
 using CheckpointApp.Models;
 using ScottPlot;
-using DocumentFormat.OpenXml.Wordprocessing;
 using ScottPlot.WPF;
 
 namespace CheckpointApp.ViewModels
@@ -18,22 +17,20 @@ namespace CheckpointApp.ViewModels
         private readonly DatabaseService _databaseService;
         private List<Crossing> _crossingsData;
 
-        // Ссылки на контролы для графиков из View
-        private WpfPlot _dynamicsPlot, _citizenshipPiePlot, _topCitizenshipBarPlot, _heatmapPlot, _operatorsPlot;
+        private WpfPlot? _dynamicsPlot, _citizenshipPiePlot, _topCitizenshipBarPlot, _heatmapPlot, _operatorsPlot;
 
         [ObservableProperty]
         private DateTime _startDate;
         [ObservableProperty]
         private DateTime _endDate;
         [ObservableProperty]
-        private string _statusText;
+        private string _statusText = string.Empty;
         [ObservableProperty]
-        private string _summaryText;
+        private string _summaryText = "Выберите период и сформируйте отчет.";
 
         public AnalyticsViewModel(DatabaseService databaseService)
         {
             _databaseService = databaseService;
-            // По умолчанию ставим период за последний месяц
             EndDate = DateTime.Today;
             StartDate = EndDate.AddMonths(-1);
             _crossingsData = new List<Crossing>();
@@ -71,11 +68,11 @@ namespace CheckpointApp.ViewModels
 
         private void ClearAllPlots()
         {
-            _dynamicsPlot?.plt.Clear(); _dynamicsPlot?.Render();
-            _citizenshipPiePlot?.plt.Clear(); _citizenshipPiePlot?.Render();
-            _topCitizenshipBarPlot?.plt.Clear(); _topCitizenshipBarPlot?.Render();
-            _heatmapPlot?.plt.Clear(); _heatmapPlot?.Render();
-            _operatorsPlot?.plt.Clear(); _operatorsPlot?.Render();
+            _dynamicsPlot?.Plot.Clear(); _dynamicsPlot?.Refresh();
+            _citizenshipPiePlot?.Plot.Clear(); _citizenshipPiePlot?.Refresh();
+            _topCitizenshipBarPlot?.Plot.Clear(); _topCitizenshipBarPlot?.Refresh();
+            _heatmapPlot?.Plot.Clear(); _heatmapPlot?.Refresh();
+            _operatorsPlot?.Plot.Clear(); _operatorsPlot?.Refresh();
         }
 
         private void GenerateSummary()
@@ -83,12 +80,12 @@ namespace CheckpointApp.ViewModels
             var totalCrossings = _crossingsData.Count;
             var uniquePersons = _crossingsData.Select(c => c.PersonId).Distinct().Count();
             var days = (EndDate - StartDate).Days + 1;
-            var avgPerDay = Math.Round((double)totalCrossings / days, 1);
+            var avgPerDay = (days > 0) ? Math.Round((double)totalCrossings / days, 1) : totalCrossings;
 
             var peakDay = _crossingsData
                 .GroupBy(c => DateTime.Parse(c.Timestamp).Date)
                 .OrderByDescending(g => g.Count())
-            .FirstOrDefault();
+                .FirstOrDefault();
 
             var sb = new StringBuilder();
             sb.AppendLine($"Анализ за период: с {StartDate:dd.MM.yyyy} по {EndDate:dd.MM.yyyy}\n");
@@ -104,113 +101,128 @@ namespace CheckpointApp.ViewModels
 
         private void GenerateDynamicsPlot()
         {
-            var plt = _dynamicsPlot.plt;
-            plt.Clear();
+            if (_dynamicsPlot == null) return;
+            var plot = _dynamicsPlot.Plot;
+            plot.Clear();
 
             var entries = _crossingsData.Where(c => c.Direction == "ВЪЕЗД")
                 .GroupBy(c => DateTime.Parse(c.Timestamp).Date)
-                .ToDictionary(g => g.Key, g => (double)g.Count());
+                .ToDictionary(g => g.Key, g => g.Count());
 
             var exits = _crossingsData.Where(c => c.Direction == "ВЫЕЗД")
                 .GroupBy(c => DateTime.Parse(c.Timestamp).Date)
-                .ToDictionary(g => g.Key, g => (double)g.Count());
+                .ToDictionary(g => g.Key, g => g.Count());
 
             var allDates = entries.Keys.Union(exits.Keys).OrderBy(d => d).ToArray();
             if (!allDates.Any()) return;
 
-            var entryValues = allDates.Select(d => entries.ContainsKey(d) ? entries[d] : 0).ToArray();
-            var exitValues = allDates.Select(d => exits.ContainsKey(d) ? exits[d] : 0).ToArray();
-            var datePositions = allDates.Select(d => d.ToOADate()).ToArray();
+            var entryValues = allDates.Select(d => (double)(entries.ContainsKey(d) ? entries[d] : 0)).ToArray();
+            var exitValues = allDates.Select(d => (double)(exits.ContainsKey(d) ? exits[d] : 0)).ToArray();
 
-            plt.PlotBar(datePositions, entryValues, label: "Въезд", barWidth: 0.4, xOffset: -0.2);
-            plt.PlotBar(datePositions, exitValues, label: "Выезд", barWidth: 0.4, xOffset: 0.2);
+            plot.Add.Bars(entryValues).Label = "Въезд";
+            plot.Add.Bars(exitValues).Label = "Выезд";
 
-            plt.XAxis.DateTimeFormat(true);
-            plt.Title("Динамика пересечений по дням");
-            plt.Legend(location: legendLocation.upperRight);
-            _dynamicsPlot.Render();
+            plot.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.DateTimeAutomatic();
+            plot.Title("Динамика пересечений по дням");
+            plot.Legend.IsVisible = true;
+            plot.Legend.Location = Alignment.UpperRight;
+            _dynamicsPlot.Refresh();
         }
 
         private void GenerateGeographyPlots()
         {
+            if (_citizenshipPiePlot == null || _topCitizenshipBarPlot == null) return;
             var byCitizenship = _crossingsData
                 .GroupBy(c => c.Citizenship ?? "НЕ УКАЗАНО")
                 .Select(g => new { Citizenship = g.Key, Count = g.Count() })
                 .OrderByDescending(x => x.Count)
                 .ToList();
 
-            // Круговая диаграмма (топ 5 + остальные)
-            var pltPie = _citizenshipPiePlot.plt;
-            pltPie.Clear();
+            // Круговая диаграмма
+            var piePlot = _citizenshipPiePlot.Plot;
+            piePlot.Clear();
             var top5 = byCitizenship.Take(5).ToList();
             var othersCount = byCitizenship.Skip(5).Sum(x => x.Count);
 
-            var values = top5.Select(x => (double)x.Count).ToList();
-            var labels = top5.Select(x => x.Citizenship).ToList();
+            List<PieSlice> slices = new();
+            foreach (var item in top5)
+            {
+                slices.Add(new PieSlice() { Value = item.Count, Label = item.Citizenship });
+            }
             if (othersCount > 0)
             {
-                values.Add(othersCount);
-                labels.Add("ДРУГИЕ");
+                slices.Add(new PieSlice() { Value = othersCount, Label = "ДРУГИЕ" });
             }
-            pltPie.PlotPie(values.ToArray(), labels.ToArray(), showPercentages: true);
-            pltPie.Title("Распределение по гражданству");
-            _citizenshipPiePlot.Render();
+            piePlot.Add.Pie(slices);
+            piePlot.Title("Распределение по гражданству");
+            _citizenshipPiePlot.Refresh();
 
-            // Столбчатая диаграмма (топ 15)
-            var pltBar = _topCitizenshipBarPlot.plt;
-            pltBar.Clear();
+            // Столбчатая диаграмма
+            var barPlot = _topCitizenshipBarPlot.Plot;
+            barPlot.Clear();
             var top15 = byCitizenship.Take(15).Reverse().ToList();
             var barValues = top15.Select(x => (double)x.Count).ToArray();
-            var barLabels = top15.Select(x => x.Citizenship).ToArray();
-            var yPositions = Enumerable.Range(0, top15.Count).Select(i => (double)i).ToArray();
 
-            pltBar.PlotBarH(yPositions, barValues);
-            pltBar.YTicks(yPositions, barLabels);
-            pltBar.Title("Топ-15 национальностей");
-            _topCitizenshipBarPlot.Render();
+            var bars = barPlot.Add.Bars(barValues);
+            // --- ИСПРАВЛЕНО: Orientation заменено на Horizontal ---
+            bars.Horizontal = true;
+
+            var ticks = top15.Select((item, index) => new Tick(index, item.Citizenship)).ToArray();
+            barPlot.Axes.Left.TickGenerator = new ScottPlot.TickGenerators.NumericManual(ticks);
+            barPlot.Axes.Left.MajorTickStyle.Length = 0;
+            barPlot.Title("Топ-15 национальностей");
+            _topCitizenshipBarPlot.Refresh();
         }
 
         private void GenerateHeatmapPlot()
         {
-            var plt = _heatmapPlot.plt;
-            plt.Clear();
+            if (_heatmapPlot == null) return;
+            var plot = _heatmapPlot.Plot;
+            plot.Clear();
 
-            double[,] intensities = new double[7, 24]; // 7 дней недели, 24 часа
+            double[,] intensities = new double[7, 24];
             foreach (var crossing in _crossingsData)
             {
                 var dt = DateTime.Parse(crossing.Timestamp);
-                int dayOfWeek = ((int)dt.DayOfWeek + 6) % 7; // Пн=0, Вс=6
+                int dayOfWeek = ((int)dt.DayOfWeek + 6) % 7;
                 int hour = dt.Hour;
                 intensities[dayOfWeek, hour]++;
             }
 
-            plt.PlotHeatmap(intensities, lockScales: false);
-            plt.YAxis.Label("День недели");
-            plt.XAxis.Label("Час дня");
-            plt.YTicks(new double[] { 0, 1, 2, 3, 4, 5, 6 }, new string[] { "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс" });
-            plt.Title("Тепловая карта нагрузки по времени");
-            _heatmapPlot.Render();
+            plot.Add.Heatmap(intensities);
+            var yTicks = new Tick[]
+            {
+                new (0, "Пн"), new (1, "Вт"), new (2, "Ср"), new (3, "Чт"),
+                new (4, "Пт"), new (5, "Сб"), new (6, "Вс")
+            };
+            plot.Axes.Left.TickGenerator = new ScottPlot.TickGenerators.NumericManual(yTicks);
+            plot.Title("Тепловая карта нагрузки по времени");
+            _heatmapPlot.Refresh();
         }
 
         private void GenerateOperatorsPlot()
         {
-            var plt = _operatorsPlot.plt;
-            plt.Clear();
+            if (_operatorsPlot == null) return;
+            var plot = _operatorsPlot.Plot;
+            plot.Clear();
 
             var byOperator = _crossingsData
                 .GroupBy(c => c.OperatorUsername ?? "N/A")
-                .Select(g => new { Operator = g.Key, Count = (double)g.Count() })
+                .Select(g => new { Operator = g.Key, Count = g.Count() })
                 .OrderBy(x => x.Count)
                 .ToList();
 
-            var values = byOperator.Select(x => x.Count).ToArray();
-            var labels = byOperator.Select(x => x.Operator).ToArray();
-            var positions = Enumerable.Range(0, byOperator.Count).Select(i => (double)i).ToArray();
+            var values = byOperator.Select(x => (double)x.Count).ToArray();
 
-            plt.PlotBarH(positions, values);
-            plt.YTicks(positions, labels);
-            plt.Title("Рейтинг операторов по количеству обработанных пересечений");
-            _operatorsPlot.Render();
+            var bars = plot.Add.Bars(values);
+            // --- ИСПРАВЛЕНО: Orientation заменено на Horizontal ---
+            bars.Horizontal = true;
+
+            var ticks = byOperator.Select((item, index) => new Tick(index, item.Operator)).ToArray();
+            plot.Axes.Left.TickGenerator = new ScottPlot.TickGenerators.NumericManual(ticks);
+            plot.Axes.Left.MajorTickStyle.Length = 0;
+            plot.Title("Рейтинг операторов");
+            _operatorsPlot.Refresh();
         }
     }
 }
