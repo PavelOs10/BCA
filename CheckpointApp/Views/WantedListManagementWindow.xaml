@@ -1,0 +1,83 @@
+<Window x:Class="CheckpointApp.Views.WantedListManagementWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Управление списком розыска" Height="700" Width="900"
+        WindowStartupLocation="CenterOwner">
+    <DockPanel>
+        <!-- СТРОКА СОСТОЯНИЯ -->
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBarItem>
+                <TextBlock Text="{Binding StatusText}"/>
+            </StatusBarItem>
+        </StatusBar>
+
+        <Grid Margin="10">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <!-- ФОРМА ДОБАВЛЕНИЯ И УПРАВЛЕНИЯ -->
+            <GroupBox Header="Добавить / Редактировать запись" Grid.Row="0" Padding="5">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <!-- Левая колонка формы -->
+                    <StackPanel Grid.Row="0" Grid.Column="0" Grid.RowSpan="4" Margin="5">
+                        <Label Content="Фамилия:"/>
+                        <TextBox Text="{Binding NewWantedPerson.LastName, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Label Content="Имя:"/>
+                        <TextBox Text="{Binding NewWantedPerson.FirstName, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Label Content="Отчество:"/>
+                        <TextBox Text="{Binding NewWantedPerson.Patronymic, UpdateSourceTrigger=PropertyChanged}"/>
+                        <Label Content="Дата рождения:"/>
+                        <DatePicker SelectedDate="{Binding NewWantedPersonDob, UpdateSourceTrigger=PropertyChanged}"/>
+                    </StackPanel>
+
+                    <!-- Правая колонка формы -->
+                    <StackPanel Grid.Row="0" Grid.Column="1" Grid.RowSpan="4" Margin="5">
+                        <Label Content="Информация (причина розыска):"/>
+                        <TextBox Height="60" TextWrapping="Wrap" AcceptsReturn="True" Text="{Binding NewWantedPerson.Info}"/>
+                        <Label Content="Предписанные действия:"/>
+                        <TextBox Height="60" TextWrapping="Wrap" AcceptsReturn="True" Text="{Binding NewWantedPerson.Actions}"/>
+                    </StackPanel>
+
+                    <!-- Кнопки -->
+                    <StackPanel Grid.Row="0" Grid.Column="2" Grid.RowSpan="4" VerticalAlignment="Center" Margin="10,0,0,0">
+                        <Button Content="Добавить в базу" Command="{Binding AddPersonCommand}" Margin="5" Padding="10,5"/>
+                        <Button Content="Удалить выбранное" Command="{Binding DeletePersonCommand}" Margin="5" Padding="10,5"/>
+                        <Button Content="Очистить поля" Command="{Binding ClearFormCommand}" Margin="5" Padding="10,5"/>
+                    </StackPanel>
+                </Grid>
+            </GroupBox>
+
+            <!-- СПИСОК РАЗЫСКИВАЕМЫХ -->
+            <ListView Grid.Row="1" Margin="0,10,0,0" ItemsSource="{Binding WantedPersons}" SelectedItem="{Binding SelectedPerson}">
+                <ListView.View>
+                    <GridView>
+                        <GridViewColumn Header="ID" DisplayMemberBinding="{Binding ID}" Width="50"/>
+                        <GridViewColumn Header="Фамилия" DisplayMemberBinding="{Binding LastName}" Width="120"/>
+                        <GridViewColumn Header="Имя" DisplayMemberBinding="{Binding FirstName}" Width="120"/>
+                        <GridViewColumn Header="Отчество" DisplayMemberBinding="{Binding Patronymic}" Width="120"/>
+                        <GridViewColumn Header="Дата рожд." DisplayMemberBinding="{Binding Dob}" Width="100"/>
+                        <GridViewColumn Header="Информация" DisplayMemberBinding="{Binding Info}" Width="180"/>
+                        <GridViewColumn Header="Действия" DisplayMemberBinding="{Binding Actions}" Width="180"/>
+                    </GridView>
+                </ListView.View>
+            </ListView>
+        </Grid>
+    </DockPanel>
+</Window>

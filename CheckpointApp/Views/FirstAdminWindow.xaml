@@ -1,0 +1,43 @@
+<Window x:Class="CheckpointApp.Views.FirstAdminWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CheckpointApp.Views"
+        mc:Ignorable="d"
+        Title="Создание первого администратора" Height="233" Width="400"
+        WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <TextBlock Grid.Row="0" Grid.ColumnSpan="2" Text="Первый запуск системы" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
+        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="Необходимо создать учетную запись администратора." TextWrapping="Wrap" Margin="0,0,0,20"/>
+
+        <Label Grid.Row="2" Grid.Column="0" Content="Имя пользователя:" VerticalAlignment="Center"/>
+        <TextBox Grid.Row="2" Grid.Column="1" Margin="5" VerticalAlignment="Center" Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"/>
+
+        <Label Grid.Row="3" Grid.Column="0" Content="Пароль:" VerticalAlignment="Center"/>
+        <PasswordBox x:Name="PasswordBox" Grid.Row="3" Grid.Column="1" Margin="5" VerticalAlignment="Center"/>
+
+        <Label Grid.Row="4" Grid.Column="0" Content="Повторите пароль:" VerticalAlignment="Center"/>
+        <PasswordBox x:Name="ConfirmPasswordBox" Grid.Row="4" Grid.Column="1" Margin="5" VerticalAlignment="Center"/>
+
+        <TextBlock Grid.Row="5" Grid.Column="1" Text="{Binding ErrorMessage}" Foreground="Red" TextWrapping="Wrap" VerticalAlignment="Center"/>
+
+        <StackPanel Grid.Row="6" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Создать" Width="100" Margin="5" IsDefault="True" Command="{Binding CreateAdminCommand}" CommandParameter="{Binding ElementName=PasswordBox}"/>
+        </StackPanel>
+    </Grid>
+</Window>

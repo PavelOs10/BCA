@@ -1,0 +1,17 @@
+# Папка с настройками Visual Studio
+.vs/
+
+# Папки с результатами сборки
+[Bb]in/
+[Oo]bj/
+
+# Файлы пользовательских настроек
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Другие служебные файлы
+*.nupkg
+*.DS_Store
+Thumbs.db

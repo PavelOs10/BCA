@@ -1,0 +1,54 @@
+<Window x:Class="CheckpointApp.Views.PeopleInZoneWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d"
+        Title="Лица в погранзоне" Height="700" Width="1000"
+        WindowStartupLocation="CenterOwner">
+    <DockPanel>
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBarItem>
+                <TextBlock Text="{Binding StatusText}"/>
+            </StatusBarItem>
+        </StatusBar>
+
+        <ToolBarTray DockPanel.Dock="Top">
+            <ToolBar>
+                <Button Content="Обновить" Command="{Binding LoadDataCommand}"/>
+            </ToolBar>
+        </ToolBarTray>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <!-- ItemsControl для отображения групп по городам -->
+            <ItemsControl ItemsSource="{Binding GroupedPersons}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <GroupBox Margin="5" Padding="5">
+                            <GroupBox.Header>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Key}" FontWeight="Bold" FontSize="14"/>
+                                    <TextBlock Text="{Binding Value.Count, StringFormat=' (Кол-во: {0})'}" Margin="10,0,0,0"/>
+                                </StackPanel>
+                            </GroupBox.Header>
+
+                            <!-- ListView для отображения людей в группе -->
+                            <ListView ItemsSource="{Binding Value}" BorderThickness="0">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="ФИО" DisplayMemberBinding="{Binding FullName}" Width="250"/>
+                                        <GridViewColumn Header="Дата рожд." DisplayMemberBinding="{Binding Dob}" Width="100"/>
+                                        <GridViewColumn Header="Паспорт" DisplayMemberBinding="{Binding PassportData}" Width="120"/>
+                                        <GridViewColumn Header="Гражданство" DisplayMemberBinding="{Binding Citizenship}" Width="120"/>
+                                        <GridViewColumn Header="Время въезда" DisplayMemberBinding="{Binding Timestamp}" Width="150"/>
+                                        <GridViewColumn Header="ТС" DisplayMemberBinding="{Binding VehicleInfo}" Width="150"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </GroupBox>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </DockPanel>
+</Window>
