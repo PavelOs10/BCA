@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -14,10 +15,10 @@ namespace CheckpointApp.ViewModels
         private readonly DatabaseService _databaseService;
 
         [ObservableProperty]
-        private string _username;
+        private string _username = string.Empty;
 
         [ObservableProperty]
-        private string _errorMessage;
+        private string _errorMessage = string.Empty;
 
         public FirstAdminViewModel(DatabaseService databaseService)
         {
@@ -27,9 +28,6 @@ namespace CheckpointApp.ViewModels
         [RelayCommand]
         private async Task CreateAdmin(PasswordBox passwordBox)
         {
-            // Получаем пароли из PasswordBox'ов
-            // К сожалению, прямое связывание с PasswordBox.Password не рекомендуется из соображений безопасности.
-            // Вместо этого мы передаем сам элемент управления в команду.
             var password = passwordBox.Password;
             var confirmPasswordBox = (passwordBox.Parent as Grid)?.FindName("ConfirmPasswordBox") as PasswordBox;
             var confirmPassword = confirmPasswordBox?.Password;
@@ -58,8 +56,11 @@ namespace CheckpointApp.ViewModels
             if (success)
             {
                 MessageBox.Show("Учетная запись администратора успешно создана.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
-                // Закрываем окно с результатом true, чтобы App.xaml.cs мог продолжить работу
-                Application.Current.Windows.OfType<Window>().SingleOrDefault(w => w.IsActive).DialogResult = true;
+                var activeWindow = Application.Current.Windows.OfType<Window>().SingleOrDefault(w => w.IsActive);
+                if (activeWindow != null)
+                {
+                    activeWindow.DialogResult = true;
+                }
             }
             else
             {

@@ -19,6 +19,12 @@ namespace CheckpointApp
         {
             base.OnStartup(e);
 
+            // --- КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ---
+            // Мы явно указываем приложению, что оно должно закрываться только
+            // по команде Shutdown(), а не после закрытия последнего окна.
+            // Это предотвратит преждевременное завершение работы.
+            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+
             var userCount = await _databaseService.GetUserCountAsync();
 
             if (userCount == 0)
@@ -28,15 +34,14 @@ namespace CheckpointApp
                     DataContext = new FirstAdminViewModel(_databaseService)
                 };
 
+                // Если пользователь закрывает окно создания админа, мы явно завершаем приложение.
                 if (firstAdminWindow.ShowDialog() != true)
                 {
-                    // Если пользователь не создал администратора, закрываем приложение
                     Shutdown();
                     return;
                 }
             }
 
-            // В любом случае после проверки показываем окно входа
             ShowLoginWindow();
         }
 
@@ -49,24 +54,24 @@ namespace CheckpointApp
 
             if (loginWindow.ShowDialog() == true)
             {
-                // Если логин успешен, получаем ViewModel, который теперь содержит данные о пользователе
                 var loginViewModel = (LoginViewModel)loginWindow.DataContext;
 
-                // Создаем главное окно
                 var mainWindow = new MainWindow
                 {
                     DataContext = new MainViewModel(_databaseService, loginViewModel.LoggedInUser!)
                 };
 
-                // --- ВАЖНОЕ ИСПРАВЛЕНИЕ ---
-                // Назначаем созданное окно главным окном приложения.
-                // Теперь приложение будет работать, пока это окно не закроется.
+                // --- ВТОРОЕ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ---
+                // Теперь, когда у нас есть настоящее главное окно, мы возвращаем
+                // стандартный режим завершения работы. Приложение будет работать,
+                // пока пользователь не закроет это главное окно.
+                ShutdownMode = ShutdownMode.OnMainWindowClose;
                 Current.MainWindow = mainWindow;
                 mainWindow.Show();
             }
             else
             {
-                // Если пользователь закрыл окно входа, завершаем приложение
+                // Если пользователь закрывает окно входа, мы явно завершаем приложение.
                 Shutdown();
             }
         }

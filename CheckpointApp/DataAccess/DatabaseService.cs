@@ -2,6 +2,10 @@
 using Dapper;
 using System.IO;
 using CheckpointApp.Models;
+using System.Diagnostics;
+using System.Threading.Tasks;
+using System.Collections.Generic;
+using System;
 
 namespace CheckpointApp.DataAccess
 {
@@ -11,7 +15,6 @@ namespace CheckpointApp.DataAccess
 
         public DatabaseService()
         {
-            // База данных будет создана в папке с приложением
             _databasePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "checkpoint_control.db");
             InitializeDatabase();
         }
@@ -64,9 +67,10 @@ namespace CheckpointApp.DataAccess
                     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL,
                     FOREIGN KEY (operator_id) REFERENCES users(id)
                 );",
+                // --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ ---
                 @"CREATE TABLE IF NOT EXISTS goods (
                     id INTEGER PRIMARY KEY,
-                    crossing_id INTEGER NOT NULL,
+                    crossing_id INTEGER NOT NULL, 
                     description TEXT NOT NULL,
                     quantity REAL,
                     unit TEXT,
@@ -98,7 +102,7 @@ namespace CheckpointApp.DataAccess
             }
         }
 
-        // --- Методы для работы с пользователями ---
+        #region User Methods
         public async Task<User?> GetUserByUsernameAsync(string username)
         {
             using var connection = GetConnection();
@@ -109,8 +113,23 @@ namespace CheckpointApp.DataAccess
         public async Task<bool> AddUserAsync(User user)
         {
             using var connection = GetConnection();
+            await connection.OpenAsync();
+
+            using var transaction = connection.BeginTransaction();
+
             var sql = "INSERT INTO users (username, password_hash, is_admin) VALUES (@Username, @PasswordHash, @IsAdmin)";
-            var affectedRows = await connection.ExecuteAsync(sql, new { user.Username, user.PasswordHash, user.IsAdmin });
+
+            var parameters = new
+            {
+                Username = user.Username,
+                PasswordHash = user.PasswordHash,
+                IsAdmin = user.IsAdmin
+            };
+
+            var affectedRows = await connection.ExecuteAsync(sql, parameters, transaction: transaction);
+
+            transaction.Commit();
+
             return affectedRows > 0;
         }
 
@@ -119,13 +138,13 @@ namespace CheckpointApp.DataAccess
             using var connection = GetConnection();
             return await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM users");
         }
+
         public async Task<IEnumerable<User>> GetAllUsersAsync()
         {
             using var connection = GetConnection();
             return await connection.QueryAsync<User>("SELECT * FROM users ORDER BY username");
         }
 
-        // --- НОВЫЙ МЕТОД: Удаление пользователя ---
         public async Task<bool> DeleteUserAsync(int id)
         {
             using var connection = GetConnection();
@@ -133,42 +152,9 @@ namespace CheckpointApp.DataAccess
             var affectedRows = await connection.ExecuteAsync(sql, new { Id = id });
             return affectedRows > 0;
         }
-        public async Task<int> AddWantedPersonAsync(WantedPerson person)
-        {
-            using var connection = GetConnection();
-            var sql = @"
-                INSERT INTO wanted_persons (last_name, first_name, patronymic, dob, info, actions)
-                VALUES (@LastName, @FirstName, @Patronymic, @Dob, @Info, @Actions)
-                RETURNING id;";
-            return await connection.ExecuteScalarAsync<int>(sql, person);
-        }
+        #endregion
 
-        // --- НОВЫЙ МЕТОД: Удаление лица из списка розыска ---
-        public async Task<bool> DeleteWantedPersonAsync(int id)
-        {
-            using var connection = GetConnection();
-            var sql = "DELETE FROM wanted_persons WHERE id = @Id";
-            var affectedRows = await connection.ExecuteAsync(sql, new { Id = id });
-            return affectedRows > 0;
-        }
-        public async Task<int> AddWatchlistPersonAsync(WatchlistPerson person)
-        {
-            using var connection = GetConnection();
-            var sql = @"
-                INSERT INTO watchlist_persons (last_name, first_name, patronymic, dob, reason)
-                VALUES (@LastName, @FirstName, @Patronymic, @Dob, @Reason)
-                RETURNING id;";
-            return await connection.ExecuteScalarAsync<int>(sql, person);
-        }
-
-        // --- НОВЫЙ МЕТОД: Удаление лица из списка наблюдения ---
-        public async Task<bool> DeleteWatchlistPersonAsync(int id)
-        {
-            using var connection = GetConnection();
-            var sql = "DELETE FROM watchlist_persons WHERE id = @Id";
-            var affectedRows = await connection.ExecuteAsync(sql, new { Id = id });
-            return affectedRows > 0;
-        }
+        #region Crossing Methods
         public async Task<IEnumerable<Crossing>> GetAllCrossingsAsync()
         {
             using var connection = GetConnection();
@@ -188,6 +174,44 @@ namespace CheckpointApp.DataAccess
             return await connection.QueryAsync<Crossing>(sql);
         }
 
+        public async Task<int> CreateCrossingAsync(Crossing crossing)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                INSERT INTO crossings (person_id, vehicle_id, direction, purpose, destination_town, crossing_type, operator_id, timestamp)
+                VALUES (@PersonId, @VehicleId, @Direction, @Purpose, @DestinationTown, @CrossingType, @OperatorId, @Timestamp)
+                RETURNING id;";
+            return await connection.ExecuteScalarAsync<int>(sql, crossing);
+        }
+
+        public async Task<IEnumerable<Crossing>> GetCrossingsByDateRangeAsync(DateTime startDate, DateTime endDate)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                SELECT 
+                    c.*, 
+                    p.last_name || ' ' || p.first_name || ' ' || IFNULL(p.patronymic, '') AS FullName,
+                    p.dob as PersonDob,
+                    p.passport_data as PersonPassport,
+                    p.citizenship,
+                    IFNULL(v.make || '/' || v.license_plate, '') AS VehicleInfo,
+                    u.username AS OperatorUsername
+                FROM crossings c
+                JOIN persons p ON c.person_id = p.id
+                LEFT JOIN vehicles v ON c.vehicle_id = v.id
+                JOIN users u ON c.operator_id = u.id
+                WHERE c.timestamp BETWEEN @StartDate AND @EndDate
+                ORDER BY c.timestamp DESC";
+
+            return await connection.QueryAsync<Crossing>(sql, new
+            {
+                StartDate = startDate.ToString("yyyy-MM-dd HH:mm:ss"),
+                EndDate = endDate.AddDays(1).ToString("yyyy-MM-dd HH:mm:ss")
+            });
+        }
+        #endregion
+
+        #region Person/Vehicle Methods
         public async Task<Person?> FindPersonByPassportAsync(string passportData)
         {
             using var connection = GetConnection();
@@ -223,17 +247,9 @@ namespace CheckpointApp.DataAccess
                 RETURNING id;";
             return await connection.ExecuteScalarAsync<int>(sql, vehicle);
         }
+        #endregion
 
-        public async Task<int> CreateCrossingAsync(Crossing crossing)
-        {
-            using var connection = GetConnection();
-            var sql = @"
-                INSERT INTO crossings (person_id, vehicle_id, direction, purpose, destination_town, crossing_type, operator_id, timestamp)
-                VALUES (@PersonId, @VehicleId, @Direction, @Purpose, @DestinationTown, @CrossingType, @OperatorId, @Timestamp)
-                RETURNING id;";
-            return await connection.ExecuteScalarAsync<int>(sql, crossing);
-        }
-
+        #region Goods Methods
         public async Task AddGoodsAsync(IEnumerable<Good> goods)
         {
             using var connection = GetConnection();
@@ -242,11 +258,31 @@ namespace CheckpointApp.DataAccess
                 VALUES (@CrossingId, @Description, @Quantity, @Unit);";
             await connection.ExecuteAsync(sql, goods);
         }
+        #endregion
 
+        #region Security Lists Methods
         public async Task<IEnumerable<WantedPerson>> GetWantedPersonsAsync()
         {
             using var connection = GetConnection();
             return await connection.QueryAsync<WantedPerson>("SELECT * FROM wanted_persons");
+        }
+
+        public async Task<int> AddWantedPersonAsync(WantedPerson person)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                INSERT INTO wanted_persons (last_name, first_name, patronymic, dob, info, actions)
+                VALUES (@LastName, @FirstName, @Patronymic, @Dob, @Info, @Actions)
+                RETURNING id;";
+            return await connection.ExecuteScalarAsync<int>(sql, person);
+        }
+
+        public async Task<bool> DeleteWantedPersonAsync(int id)
+        {
+            using var connection = GetConnection();
+            var sql = "DELETE FROM wanted_persons WHERE id = @Id";
+            var affectedRows = await connection.ExecuteAsync(sql, new { Id = id });
+            return affectedRows > 0;
         }
 
         public async Task<IEnumerable<WatchlistPerson>> GetWatchlistPersonsAsync()
@@ -254,11 +290,30 @@ namespace CheckpointApp.DataAccess
             using var connection = GetConnection();
             return await connection.QueryAsync<WatchlistPerson>("SELECT * FROM watchlist_persons");
         }
+
+        public async Task<int> AddWatchlistPersonAsync(WatchlistPerson person)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                INSERT INTO watchlist_persons (last_name, first_name, patronymic, dob, reason)
+                VALUES (@LastName, @FirstName, @Patronymic, @Dob, @Reason)
+                RETURNING id;";
+            return await connection.ExecuteScalarAsync<int>(sql, person);
+        }
+
+        public async Task<bool> DeleteWatchlistPersonAsync(int id)
+        {
+            using var connection = GetConnection();
+            var sql = "DELETE FROM watchlist_persons WHERE id = @Id";
+            var affectedRows = await connection.ExecuteAsync(sql, new { Id = id });
+            return affectedRows > 0;
+        }
+        #endregion
+
+        #region Analytics Methods
         public async Task<IEnumerable<PersonInZone>> GetPersonsInZoneAsync()
         {
             using var connection = GetConnection();
-            // Этот запрос находит последнее пересечение для каждого человека
-            // и возвращает данные, если это пересечение было "ВЪЕЗД".
             var sql = @"
                 WITH LastCrossing AS (
                     SELECT
@@ -284,31 +339,6 @@ namespace CheckpointApp.DataAccess
             ";
             return await connection.QueryAsync<PersonInZone>(sql);
         }
-        public async Task<IEnumerable<Crossing>> GetCrossingsByDateRangeAsync(DateTime startDate, DateTime endDate)
-        {
-            using var connection = GetConnection();
-            // endDate.AddDays(1) используется для включения всего последнего дня в диапазон
-            var sql = @"
-                SELECT 
-                    c.*, 
-                    p.last_name || ' ' || p.first_name || ' ' || IFNULL(p.patronymic, '') AS FullName,
-                    p.dob as PersonDob,
-                    p.passport_data as PersonPassport,
-                    p.citizenship, -- Добавляем гражданство для аналитики
-                    IFNULL(v.make || '/' || v.license_plate, '') AS VehicleInfo,
-                    u.username AS OperatorUsername
-                FROM crossings c
-                JOIN persons p ON c.person_id = p.id
-                LEFT JOIN vehicles v ON c.vehicle_id = v.id
-                JOIN users u ON c.operator_id = u.id
-                WHERE c.timestamp BETWEEN @StartDate AND @EndDate
-                ORDER BY c.timestamp DESC";
-
-            return await connection.QueryAsync<Crossing>(sql, new
-            {
-                StartDate = startDate.ToString("yyyy-MM-dd HH:mm:ss"),
-                EndDate = endDate.AddDays(1).ToString("yyyy-MM-dd HH:mm:ss")
-            });
-        }
+        #endregion
     }
 }

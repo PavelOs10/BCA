@@ -1,4 +1,6 @@
-﻿using System.Threading.Tasks;
+﻿using System.Diagnostics; // <-- Добавляем using для логирования
+using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -15,12 +17,12 @@ namespace CheckpointApp.ViewModels
         private readonly DatabaseService _databaseService;
 
         [ObservableProperty]
-        private string _username;
+        private string _username = string.Empty;
 
         [ObservableProperty]
-        private string _errorMessage;
+        private string _errorMessage = string.Empty;
 
-        public User LoggedInUser { get; private set; }
+        public User? LoggedInUser { get; private set; }
 
         public LoginViewModel(DatabaseService databaseService)
         {
@@ -31,34 +33,60 @@ namespace CheckpointApp.ViewModels
         private async Task Login(PasswordBox passwordBox)
         {
             var password = passwordBox.Password;
+            Debug.WriteLine("--- Попытка входа ---");
 
             if (string.IsNullOrWhiteSpace(Username) || string.IsNullOrWhiteSpace(password))
             {
                 ErrorMessage = "Введите имя пользователя и пароль.";
+                Debug.WriteLine("ОШИБКА: Имя пользователя или пароль пустые.");
                 return;
             }
 
+            Debug.WriteLine($"Поиск пользователя: '{Username.ToUpper()}'");
             var user = await _databaseService.GetUserByUsernameAsync(Username);
 
-            if (user != null && PasswordHelper.VerifyPassword(password, user.PasswordHash))
+            if (user != null)
             {
-                LoggedInUser = user;
-                // Успешный вход
-                Application.Current.Windows.OfType<Window>().SingleOrDefault(w => w.IsActive).DialogResult = true;
+                Debug.WriteLine($"Пользователь '{user.Username}' найден в базе данных.");
+                Debug.WriteLine($"Хэш в базе данных: {user.PasswordHash}");
+
+                string hashOfInput = PasswordHelper.HashPassword(password);
+                Debug.WriteLine($"Хэш введенного пароля: {hashOfInput}");
+
+                bool isPasswordCorrect = PasswordHelper.VerifyPassword(password, user.PasswordHash);
+                Debug.WriteLine($"Результат проверки пароля: {isPasswordCorrect}");
+
+                if (isPasswordCorrect)
+                {
+                    Debug.WriteLine("УСПЕХ: Пароль верный. Вход разрешен.");
+                    LoggedInUser = user;
+                    var activeWindow = Application.Current.Windows.OfType<Window>().SingleOrDefault(w => w.IsActive);
+                    if (activeWindow != null)
+                    {
+                        activeWindow.DialogResult = true;
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine("ОШИБКА: Пароль неверный.");
+                    ErrorMessage = "Неверное имя пользователя или пароль.";
+                }
             }
             else
             {
+                Debug.WriteLine($"ОШИБКА: Пользователь '{Username.ToUpper()}' не найден в базе данных.");
                 ErrorMessage = "Неверное имя пользователя или пароль.";
             }
+            Debug.WriteLine("--- Конец попытки входа ---");
         }
 
         [RelayCommand]
         private void Register()
         {
-            // Открываем окно регистрации нового оператора (без прав администратора)
-            var registrationWindow = new RegistrationWindow();
-            var registrationViewModel = new RegistrationViewModel(_databaseService);
-            registrationWindow.DataContext = registrationViewModel;
+            var registrationWindow = new RegistrationWindow
+            {
+                DataContext = new RegistrationViewModel(_databaseService)
+            };
             registrationWindow.ShowDialog();
         }
     }

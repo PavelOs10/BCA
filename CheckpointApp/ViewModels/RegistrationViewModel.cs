@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -14,10 +15,10 @@ namespace CheckpointApp.ViewModels
         private readonly DatabaseService _databaseService;
 
         [ObservableProperty]
-        private string _username;
+        private string _username = string.Empty;
 
         [ObservableProperty]
-        private string _errorMessage;
+        private string _errorMessage = string.Empty;
 
         public RegistrationViewModel(DatabaseService databaseService)
         {
@@ -35,7 +36,6 @@ namespace CheckpointApp.ViewModels
                 return;
             }
 
-            // Проверяем, не занято ли имя пользователя
             var existingUser = await _databaseService.GetUserByUsernameAsync(Username);
             if (existingUser != null)
             {
@@ -47,7 +47,7 @@ namespace CheckpointApp.ViewModels
             {
                 Username = Username.ToUpper(),
                 PasswordHash = PasswordHelper.HashPassword(password),
-                IsAdmin = false // Новые пользователи по умолчанию не администраторы
+                IsAdmin = false
             };
 
             bool success = await _databaseService.AddUserAsync(newUser);
