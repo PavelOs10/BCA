@@ -11,7 +11,7 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     </Window.Resources>
     <DockPanel>
-        <!-- СТРОКА МЕНЮ -->
+        <!-- СТРОКА МЕНЮ (ИЗМЕНЕНО) -->
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_Файл">
                 <MenuItem Header="_Экспорт в Excel" Command="{Binding ExportToExcelCommand}"/>
@@ -20,15 +20,15 @@
             </MenuItem>
             <MenuItem Header="_Инструменты">
                 <MenuItem Header="Лица в погранзоне" Command="{Binding ShowPeopleInZoneCommand}"/>
-            </MenuItem>
-            <MenuItem Header="_Администрирование" Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <MenuItem Header="Аналитика" Command="{Binding ShowAnalyticsCommand}"/>
-                <MenuItem Header="Управление пользователями" Command="{Binding ManageUsersCommand}"/>
+                <MenuItem Header="Аналитика" Command="{Binding ShowAnalyticsCommand}" Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                 <MenuItem Header="Список розыска" Command="{Binding ManageWantedListCommand}"/>
                 <MenuItem Header="Список наблюдения" Command="{Binding ManageWatchlistCommand}"/>
             </MenuItem>
+            <MenuItem Header="_Администрирование" Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <MenuItem Header="Управление пользователями" Command="{Binding ManageUsersCommand}"/>
+            </MenuItem>
             <MenuItem Header="_Справка">
-                <MenuItem Header="_О программе"/>
+                <MenuItem Header="_О программе" Command="{Binding ShowAboutInfoCommand}"/>
             </MenuItem>
         </Menu>
 

@@ -33,7 +33,7 @@ namespace CheckpointApp.ViewModels
         [ObservableProperty] private Vehicle _currentVehicle;
         public List<string> CrossingTypes { get; } = new List<string> { "ПЕШКОМ", "ВОДИТЕЛЬ", "ПАССАЖИР" };
         [ObservableProperty][NotifyPropertyChangedFor(nameof(IsVehicleInfoEnabled))] private string _selectedCrossingType;
-        public bool IsVehicleInfoEnabled => SelectedCrossingType != "ПЕШКОМ";
+        public bool IsVehicleInfoEnabled => SelectedCrossingType == "ВОДИТЕЛЬ";
         public bool IsDirectionIn { get => CurrentCrossing.Direction == "ВЪЕЗД"; set { if (value) CurrentCrossing.Direction = "ВЪЕЗД"; OnPropertyChanged(); } }
         public bool IsDirectionOut { get => CurrentCrossing.Direction == "ВЫЕЗД"; set { if (value) CurrentCrossing.Direction = "ВЫЕЗД"; OnPropertyChanged(); } }
         [ObservableProperty] private string _windowTitle;
@@ -113,10 +113,7 @@ namespace CheckpointApp.ViewModels
             CurrentPersonDob = null;
             SelectedCrossingType = CrossingTypes[0];
             CurrentPerson.PropertyChanged += OnCurrentPersonPropertyChanged;
-
-            // --- Инициализируем/очищаем список товаров ---
             TemporaryGoodsList = new ObservableCollection<TempGood>();
-
             StatusMessage = "Готов к работе.";
             CrossingsView.Refresh();
         }
@@ -179,7 +176,9 @@ namespace CheckpointApp.ViewModels
                 }
                 else
                 {
-                    // --- ИСПРАВЛЕНО: person.ID заменено на person.Id ---
+                    // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+                    // Было: person.ID
+                    // Стало: person.Id
                     personId = person.Id;
                 }
 
@@ -220,12 +219,10 @@ namespace CheckpointApp.ViewModels
             }
         }
 
-        // --- НОВАЯ КОМАНДА: Показать окно товаров ---
         [RelayCommand]
         private void ShowGoodsWindow()
         {
             var goodsWindow = new GoodsWindow();
-            // Устанавливаем владельца, чтобы окно было модальным относительно главного
             goodsWindow.Owner = Application.Current.MainWindow;
             var viewModel = new GoodsViewModel(TemporaryGoodsList);
             goodsWindow.DataContext = viewModel;
@@ -275,7 +272,6 @@ namespace CheckpointApp.ViewModels
             var window = new UserManagementWindow
             {
                 Owner = Application.Current.MainWindow,
-                // Передаем текущего пользователя, чтобы ViewModel мог проверить права на удаление
                 DataContext = new UserManagementViewModel(_databaseService, _currentUser)
             };
             window.ShowDialog();
@@ -298,7 +294,7 @@ namespace CheckpointApp.ViewModels
                 Owner = Application.Current.MainWindow,
                 DataContext = new AnalyticsViewModel(_databaseService)
             };
-            window.Show(); // Показываем как немодальное, чтобы можно было работать с основным окном
+            window.Show();
         }
         [RelayCommand]
         private async Task ExportToExcel()
@@ -315,11 +311,8 @@ namespace CheckpointApp.ViewModels
                 StatusMessage = "Экспорт данных в Excel... Пожалуйста, подождите.";
                 try
                 {
-                    // Получаем отфильтрованные и отсортированные данные прямо из View
                     var dataToExport = CrossingsView.Cast<Crossing>().ToList();
-
                     await _excelExportService.ExportCrossingsAsync(dataToExport, saveFileDialog.FileName);
-
                     StatusMessage = $"Экспорт успешно завершен. Файл сохранен: {saveFileDialog.FileName}";
                     MessageBox.Show("Данные успешно экспортированы.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -329,6 +322,12 @@ namespace CheckpointApp.ViewModels
                     MessageBox.Show($"Произошла ошибка во время экспорта: {ex.Message}", "Ошибка экспорта", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
+        }
+
+        [RelayCommand]
+        private void ShowAboutInfo()
+        {
+            MessageBox.Show("Версия 4.0, Разработчик ОПО Ленингор", "О программе", MessageBoxButton.OK, MessageBoxImage.Information);
         }
     }
 }
