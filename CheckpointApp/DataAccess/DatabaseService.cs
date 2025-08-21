@@ -38,7 +38,7 @@ namespace CheckpointApp.DataAccess
                     is_admin BOOLEAN NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );",
-                @"CREATE TABLE IF NOT EXISTS persons (
+                 @"CREATE TABLE IF NOT EXISTS persons (
                     id INTEGER PRIMARY KEY,
                     last_name TEXT NOT NULL,
                     first_name TEXT NOT NULL,
@@ -67,10 +67,9 @@ namespace CheckpointApp.DataAccess
                     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL,
                     FOREIGN KEY (operator_id) REFERENCES users(id)
                 );",
-                // --- ФИНАЛЬНОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ ---
                 @"CREATE TABLE IF NOT EXISTS goods (
                     id INTEGER PRIMARY KEY,
-                    crossing_id INTEGER NOT NULL, 
+                    crossing_id INTEGER NOT NULL,
                     description TEXT NOT NULL,
                     quantity REAL,
                     unit TEXT,
@@ -105,33 +104,43 @@ namespace CheckpointApp.DataAccess
         #region User Methods
         public async Task<User?> GetUserByUsernameAsync(string username)
         {
+            // --- ИСПРАВЛЕНИЕ ЧТЕНИЯ ДАННЫХ ---
+            // Проблема была в том, что Dapper не мог сопоставить столбец 'password_hash'
+            // со свойством 'PasswordHash'. Мы заменяем 'SELECT *' на явное перечисление
+            // столбцов с псевдонимами (AS), чтобы Dapper точно знал, что куда сопоставлять.
             using var connection = GetConnection();
-            return await connection.QuerySingleOrDefaultAsync<User>(
-                "SELECT * FROM users WHERE username = @Username", new { Username = username.ToUpper() });
+            var sql = @"
+                SELECT
+                    id AS ID,
+                    username AS Username,
+                    password_hash AS PasswordHash,
+                    is_admin AS IsAdmin,
+                    created_at AS CreatedAt
+                FROM users
+                WHERE username = @Username";
+            return await connection.QuerySingleOrDefaultAsync<User>(sql, new { Username = username.ToUpper() });
         }
 
         public async Task<bool> AddUserAsync(User user)
         {
+            // Этот метод уже исправлен и работает надежно через ADO.NET
             using var connection = GetConnection();
             await connection.OpenAsync();
 
-            using var transaction = connection.BeginTransaction();
+            var command = connection.CreateCommand();
+            command.CommandText =
+                @"INSERT INTO users (username, password_hash, is_admin)
+                  VALUES ($username, $password_hash, $is_admin)";
 
-            var sql = "INSERT INTO users (username, password_hash, is_admin) VALUES (@Username, @PasswordHash, @IsAdmin)";
+            command.Parameters.AddWithValue("$username", user.Username);
+            command.Parameters.AddWithValue("$password_hash", user.PasswordHash);
+            command.Parameters.AddWithValue("$is_admin", user.IsAdmin);
 
-            var parameters = new
-            {
-                Username = user.Username,
-                PasswordHash = user.PasswordHash,
-                IsAdmin = user.IsAdmin
-            };
-
-            var affectedRows = await connection.ExecuteAsync(sql, parameters, transaction: transaction);
-
-            transaction.Commit();
+            var affectedRows = await command.ExecuteNonQueryAsync();
 
             return affectedRows > 0;
         }
+
 
         public async Task<int> GetUserCountAsync()
         {
@@ -141,8 +150,18 @@ namespace CheckpointApp.DataAccess
 
         public async Task<IEnumerable<User>> GetAllUsersAsync()
         {
+            // --- ИСПРАВЛЕНИЕ ЧТЕНИЯ ДАННЫХ (аналогично GetUserByUsernameAsync) ---
             using var connection = GetConnection();
-            return await connection.QueryAsync<User>("SELECT * FROM users ORDER BY username");
+            var sql = @"
+                SELECT
+                    id AS ID,
+                    username AS Username,
+                    password_hash AS PasswordHash,
+                    is_admin AS IsAdmin,
+                    created_at AS CreatedAt
+                FROM users
+                ORDER BY username";
+            return await connection.QueryAsync<User>(sql);
         }
 
         public async Task<bool> DeleteUserAsync(int id)
@@ -159,8 +178,8 @@ namespace CheckpointApp.DataAccess
         {
             using var connection = GetConnection();
             var sql = @"
-                SELECT 
-                    c.*, 
+                SELECT
+                    c.*,
                     p.last_name || ' ' || p.first_name || ' ' || IFNULL(p.patronymic, '') AS FullName,
                     p.dob as PersonDob,
                     p.passport_data as PersonPassport,
@@ -188,8 +207,8 @@ namespace CheckpointApp.DataAccess
         {
             using var connection = GetConnection();
             var sql = @"
-                SELECT 
-                    c.*, 
+                SELECT
+                    c.*,
                     p.last_name || ' ' || p.first_name || ' ' || IFNULL(p.patronymic, '') AS FullName,
                     p.dob as PersonDob,
                     p.passport_data as PersonPassport,

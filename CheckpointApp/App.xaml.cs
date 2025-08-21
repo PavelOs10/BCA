@@ -19,10 +19,11 @@ namespace CheckpointApp
         {
             base.OnStartup(e);
 
-            // --- КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ---
+            // --- ИСПРАВЛЕНИЕ ЖИЗНЕННОГО ЦИКЛА 1 ---
             // Мы явно указываем приложению, что оно должно закрываться только
             // по команде Shutdown(), а не после закрытия последнего окна.
-            // Это предотвратит преждевременное завершение работы.
+            // Это предотвратит преждевременное завершение работы после закрытия
+            // окна создания администратора.
             ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
             var userCount = await _databaseService.GetUserCountAsync();
@@ -34,14 +35,19 @@ namespace CheckpointApp
                     DataContext = new FirstAdminViewModel(_databaseService)
                 };
 
-                // Если пользователь закрывает окно создания админа, мы явно завершаем приложение.
+                // Теперь мы проверяем результат диалога. ViewModel установит DialogResult в true
+                // только при успешном создании администратора.
                 if (firstAdminWindow.ShowDialog() != true)
                 {
+                    // Если пользователь просто закрыл окно, не создав админа,
+                    // мы принудительно завершаем работу приложения.
                     Shutdown();
                     return;
                 }
             }
 
+            // Этот метод будет вызван только если администратор уже существует
+            // или был только что успешно создан.
             ShowLoginWindow();
         }
 
@@ -52,6 +58,7 @@ namespace CheckpointApp
                 DataContext = new LoginViewModel(_databaseService)
             };
 
+            // Если вход в систему прошел успешно (ViewModel установил DialogResult в true)
             if (loginWindow.ShowDialog() == true)
             {
                 var loginViewModel = (LoginViewModel)loginWindow.DataContext;
@@ -61,17 +68,18 @@ namespace CheckpointApp
                     DataContext = new MainViewModel(_databaseService, loginViewModel.LoggedInUser!)
                 };
 
-                // --- ВТОРОЕ КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ---
-                // Теперь, когда у нас есть настоящее главное окно, мы возвращаем
-                // стандартный режим завершения работы. Приложение будет работать,
+                // --- ИСПРАВЛЕНИЕ ЖИЗНЕННОГО ЦИКЛА 2 ---
+                // Теперь, когда у нас есть настоящее главное окно, мы делаем его основным
+                // и возвращаем стандартный режим завершения работы. Приложение будет работать,
                 // пока пользователь не закроет это главное окно.
-                ShutdownMode = ShutdownMode.OnMainWindowClose;
                 Current.MainWindow = mainWindow;
+                ShutdownMode = ShutdownMode.OnMainWindowClose;
                 mainWindow.Show();
             }
             else
             {
-                // Если пользователь закрывает окно входа, мы явно завершаем приложение.
+                // Если пользователь закрыл окно входа, не авторизовавшись,
+                // мы принудительно завершаем работу приложения.
                 Shutdown();
             }
         }
