@@ -4,6 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:viewModels="clr-namespace:CheckpointApp.ViewModels"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=viewModels:MainViewModel}"
         Title="{Binding WindowTitle}" Height="800" Width="1200" WindowStartupLocation="CenterScreen">
@@ -11,7 +12,7 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
     </Window.Resources>
     <DockPanel>
-        <!-- СТРОКА МЕНЮ (ИЗМЕНЕНО) -->
+        <!-- СТРОКА МЕНЮ -->
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_Файл">
                 <MenuItem Header="_Экспорт в Excel" Command="{Binding ExportToExcelCommand}"/>
@@ -100,7 +101,9 @@
                             <DatePicker Grid.Row="1" Grid.Column="3" Margin="2" SelectedDate="{Binding CurrentPersonDob, UpdateSourceTrigger=PropertyChanged}"/>
 
                             <Label Grid.Row="2" Grid.Column="0" Content="Гражданство:"/>
-                            <ComboBox Grid.Row="2" Grid.Column="1" Margin="2" IsEditable="True" Text="{Binding CurrentPerson.Citizenship, UpdateSourceTrigger=PropertyChanged}"/>
+                            <ComboBox Grid.Row="2" Grid.Column="1" Margin="2" IsEditable="True" 
+                                      Text="{Binding CurrentPerson.Citizenship, UpdateSourceTrigger=PropertyChanged}"
+                                      ItemsSource="{Binding AllCitizenships}"/>
                             <Label Grid.Row="2" Grid.Column="2" Content="Паспорт:"/>
                             <TextBox Grid.Row="2" Grid.Column="3" Margin="2" Text="{Binding CurrentPerson.PassportData, UpdateSourceTrigger=PropertyChanged}"/>
 
@@ -126,16 +129,16 @@
                                 <ComboBox ItemsSource="{Binding CrossingTypes}" SelectedItem="{Binding SelectedCrossingType}"/>
 
                                 <Label Content="Цель:"/>
-                                <ComboBox IsEditable="True" Text="{Binding CurrentCrossing.Purpose}"/>
+                                <ComboBox IsEditable="True" Text="{Binding CurrentCrossing.Purpose, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding AllPurposes}"/>
 
                                 <Label Content="НП Следования (для въезда):"/>
-                                <ComboBox IsEditable="True" Text="{Binding CurrentCrossing.DestinationTown}"/>
+                                <ComboBox IsEditable="True" Text="{Binding CurrentCrossing.DestinationTown, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding AllDestinations}"/>
                             </StackPanel>
 
                             <GroupBox Header="Информация о ТС" Grid.Column="1" Margin="5" IsEnabled="{Binding IsVehicleInfoEnabled}">
                                 <StackPanel>
                                     <Label Content="Марка:"/>
-                                    <ComboBox IsEditable="True" Text="{Binding CurrentVehicle.Make}"/>
+                                    <ComboBox IsEditable="True" Text="{Binding CurrentVehicle.Make, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding AllVehicleMakes}"/>
                                     <Label Content="Гос. номер:"/>
                                     <TextBox Text="{Binding CurrentVehicle.LicensePlate, UpdateSourceTrigger=PropertyChanged}"/>
                                 </StackPanel>
@@ -146,8 +149,13 @@
 
                 <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="LightGray"/>
 
-                <!-- НИЖНЯЯ ПАНЕЛЬ: ЖУРНАЛ ПЕРЕСЕЧЕНИЙ -->
-                <ListView Grid.Row="2" ItemsSource="{Binding CrossingsView}">
+                <!-- НИЖНЯЯ ПАНЕЛЬ: ЖУРНАЛ ПЕРЕСЕЧЕНИЙ (ИЗМЕНЕНО) -->
+                <ListView Grid.Row="2" ItemsSource="{Binding CrossingsView}" SelectedItem="{Binding SelectedCrossing}">
+                    <i:Interaction.Triggers>
+                        <i:EventTrigger EventName="MouseDoubleClick">
+                            <i:InvokeCommandAction Command="{Binding SelectCrossingCommand}" />
+                        </i:EventTrigger>
+                    </i:Interaction.Triggers>
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="ID" DisplayMemberBinding="{Binding ID}"/>

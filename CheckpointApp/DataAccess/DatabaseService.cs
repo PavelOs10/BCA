@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using System;
+using System.Linq;
 
 namespace CheckpointApp.DataAccess
 {
@@ -104,10 +105,6 @@ namespace CheckpointApp.DataAccess
         #region User Methods
         public async Task<User?> GetUserByUsernameAsync(string username)
         {
-            // --- ИСПРАВЛЕНИЕ ЧТЕНИЯ ДАННЫХ ---
-            // Проблема была в том, что Dapper не мог сопоставить столбец 'password_hash'
-            // со свойством 'PasswordHash'. Мы заменяем 'SELECT *' на явное перечисление
-            // столбцов с псевдонимами (AS), чтобы Dapper точно знал, что куда сопоставлять.
             using var connection = GetConnection();
             var sql = @"
                 SELECT
@@ -123,7 +120,6 @@ namespace CheckpointApp.DataAccess
 
         public async Task<bool> AddUserAsync(User user)
         {
-            // Этот метод уже исправлен и работает надежно через ADO.NET
             using var connection = GetConnection();
             await connection.OpenAsync();
 
@@ -150,7 +146,6 @@ namespace CheckpointApp.DataAccess
 
         public async Task<IEnumerable<User>> GetAllUsersAsync()
         {
-            // --- ИСПРАВЛЕНИЕ ЧТЕНИЯ ДАННЫХ (аналогично GetUserByUsernameAsync) ---
             using var connection = GetConnection();
             var sql = @"
                 SELECT
@@ -179,7 +174,15 @@ namespace CheckpointApp.DataAccess
             using var connection = GetConnection();
             var sql = @"
                 SELECT
-                    c.*,
+                    c.id AS ID,
+                    c.person_id AS PersonId,
+                    c.vehicle_id AS VehicleId,
+                    c.direction AS Direction,
+                    c.purpose AS Purpose,
+                    c.destination_town AS DestinationTown,
+                    c.crossing_type AS CrossingType,
+                    c.operator_id AS OperatorId,
+                    c.timestamp AS Timestamp,
                     p.last_name || ' ' || p.first_name || ' ' || IFNULL(p.patronymic, '') AS FullName,
                     p.dob as PersonDob,
                     p.passport_data as PersonPassport,
@@ -200,7 +203,18 @@ namespace CheckpointApp.DataAccess
                 INSERT INTO crossings (person_id, vehicle_id, direction, purpose, destination_town, crossing_type, operator_id, timestamp)
                 VALUES (@PersonId, @VehicleId, @Direction, @Purpose, @DestinationTown, @CrossingType, @OperatorId, @Timestamp)
                 RETURNING id;";
-            return await connection.ExecuteScalarAsync<int>(sql, crossing);
+
+            var parameters = new DynamicParameters();
+            parameters.Add("PersonId", crossing.PersonId);
+            parameters.Add("VehicleId", crossing.VehicleId);
+            parameters.Add("Direction", crossing.Direction);
+            parameters.Add("Purpose", crossing.Purpose);
+            parameters.Add("DestinationTown", crossing.DestinationTown);
+            parameters.Add("CrossingType", crossing.CrossingType);
+            parameters.Add("OperatorId", crossing.OperatorId);
+            parameters.Add("Timestamp", crossing.Timestamp);
+
+            return await connection.ExecuteScalarAsync<int>(sql, parameters);
         }
 
         public async Task<IEnumerable<Crossing>> GetCrossingsByDateRangeAsync(DateTime startDate, DateTime endDate)
@@ -208,11 +222,19 @@ namespace CheckpointApp.DataAccess
             using var connection = GetConnection();
             var sql = @"
                 SELECT
-                    c.*,
+                    c.id AS ID,
+                    c.person_id AS PersonId,
+                    c.vehicle_id AS VehicleId,
+                    c.direction AS Direction,
+                    c.purpose AS Purpose,
+                    c.destination_town AS DestinationTown,
+                    c.crossing_type AS CrossingType,
+                    c.operator_id AS OperatorId,
+                    c.timestamp AS Timestamp,
                     p.last_name || ' ' || p.first_name || ' ' || IFNULL(p.patronymic, '') AS FullName,
                     p.dob as PersonDob,
                     p.passport_data as PersonPassport,
-                    p.citizenship,
+                    p.citizenship AS Citizenship,
                     IFNULL(v.make || '/' || v.license_plate, '') AS VehicleInfo,
                     u.username AS OperatorUsername
                 FROM crossings c
@@ -228,23 +250,54 @@ namespace CheckpointApp.DataAccess
                 EndDate = endDate.AddDays(1).ToString("yyyy-MM-dd HH:mm:ss")
             });
         }
+
+        public async Task<IEnumerable<string>> GetDistinctValuesAsync(string tableName, string columnName)
+        {
+            using var connection = GetConnection();
+            if (!System.Text.RegularExpressions.Regex.IsMatch(tableName, @"^[a-zA-Z0-9_]+$") ||
+                !System.Text.RegularExpressions.Regex.IsMatch(columnName, @"^[a-zA-Z0-9_]+$"))
+            {
+                throw new ArgumentException("Invalid table or column name.");
+            }
+            var sql = $"SELECT DISTINCT {columnName} FROM {tableName} WHERE {columnName} IS NOT NULL AND {columnName} != '' ORDER BY {columnName}";
+            return await connection.QueryAsync<string>(sql);
+        }
         #endregion
 
         #region Person/Vehicle Methods
         public async Task<Person?> FindPersonByPassportAsync(string passportData)
         {
             using var connection = GetConnection();
-            return await connection.QuerySingleOrDefaultAsync<Person>(
-                "SELECT * FROM persons WHERE passport_data = @PassportData",
-                new { PassportData = passportData.ToUpper() });
+            var sql = @"
+                SELECT
+                    id AS Id,
+                    last_name AS LastName,
+                    first_name AS FirstName,
+                    patronymic AS Patronymic,
+                    dob AS Dob,
+                    citizenship AS Citizenship,
+                    passport_data AS PassportData,
+                    notes AS Notes
+                FROM persons
+                WHERE passport_data = @PassportData";
+            return await connection.QuerySingleOrDefaultAsync<Person>(sql, new { PassportData = passportData.ToUpper() });
         }
 
         public async Task<Vehicle?> FindVehicleByLicensePlateAsync(string licensePlate)
         {
+            // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+            // Заменяем "SELECT *" на явное перечисление столбцов с псевдонимами (AS),
+            // чтобы Dapper гарантированно правильно сопоставлял данные из БД
+            // со свойствами C# модели Vehicle.
             using var connection = GetConnection();
-            return await connection.QuerySingleOrDefaultAsync<Vehicle>(
-                "SELECT * FROM vehicles WHERE license_plate = @LicensePlate",
-                new { LicensePlate = licensePlate.ToUpper() });
+            var sql = @"
+                SELECT
+                    id AS ID,
+                    make AS Make,
+                    license_plate AS LicensePlate
+                FROM vehicles
+                WHERE license_plate = @LicensePlate";
+            return await connection.QuerySingleOrDefaultAsync<Vehicle>(sql, new { LicensePlate = licensePlate.ToUpper() });
         }
 
         public async Task<int> CreatePersonAsync(Person person)

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,18 +25,29 @@ namespace CheckpointApp.ViewModels
         private readonly User _currentUser;
         private readonly ExcelExportService _excelExportService;
         private CancellationTokenSource? _filterCts;
+
+        public ObservableCollection<string> AllPurposes { get; set; }
+        public ObservableCollection<string> AllDestinations { get; set; }
+        public ObservableCollection<string> AllVehicleMakes { get; set; }
+        public ObservableCollection<string> AllCitizenships { get; set; }
         public ObservableCollection<TempGood> TemporaryGoodsList { get; set; }
+
         [ObservableProperty] private ObservableCollection<Crossing> _allCrossings;
         public ICollectionView CrossingsView { get; }
+
         [ObservableProperty] private Person _currentPerson;
         [ObservableProperty] private DateTime? _currentPersonDob;
         [ObservableProperty] private Crossing _currentCrossing;
         [ObservableProperty] private Vehicle _currentVehicle;
+        [ObservableProperty] private Crossing? _selectedCrossing;
+
         public List<string> CrossingTypes { get; } = new List<string> { "ПЕШКОМ", "ВОДИТЕЛЬ", "ПАССАЖИР" };
         [ObservableProperty][NotifyPropertyChangedFor(nameof(IsVehicleInfoEnabled))] private string _selectedCrossingType;
+
         public bool IsVehicleInfoEnabled => SelectedCrossingType == "ВОДИТЕЛЬ";
-        public bool IsDirectionIn { get => CurrentCrossing.Direction == "ВЪЕЗД"; set { if (value) CurrentCrossing.Direction = "ВЪЕЗД"; OnPropertyChanged(); } }
-        public bool IsDirectionOut { get => CurrentCrossing.Direction == "ВЫЕЗД"; set { if (value) CurrentCrossing.Direction = "ВЫЕЗД"; OnPropertyChanged(); } }
+        public bool IsDirectionIn { get => CurrentCrossing.Direction == "ВЪЕЗД"; set { if (value) CurrentCrossing.Direction = "ВЪЕЗД"; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirectionOut)); } }
+        public bool IsDirectionOut { get => CurrentCrossing.Direction == "ВЫЕЗД"; set { if (value) CurrentCrossing.Direction = "ВЫЕЗД"; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirectionIn)); } }
+
         [ObservableProperty] private string _windowTitle;
         [ObservableProperty] private string _statusMessage;
         [ObservableProperty] private bool _isAdmin;
@@ -46,18 +58,27 @@ namespace CheckpointApp.ViewModels
             _securityService = new SecurityService(databaseService);
             _currentUser = currentUser;
             _excelExportService = new ExcelExportService();
+
             _allCrossings = new ObservableCollection<Crossing>();
             CrossingsView = CollectionViewSource.GetDefaultView(_allCrossings);
             CrossingsView.Filter = FilterCrossings;
+
+            AllPurposes = new ObservableCollection<string>();
+            AllDestinations = new ObservableCollection<string>();
+            AllVehicleMakes = new ObservableCollection<string>();
+            AllCitizenships = new ObservableCollection<string>();
+            TemporaryGoodsList = new ObservableCollection<TempGood>();
+
             IsAdmin = _currentUser.IsAdmin;
             WindowTitle = $"Контрольный пункт | Пользователь: {_currentUser.Username} ({(_currentUser.IsAdmin ? "Администратор" : "Оператор")})";
-            TemporaryGoodsList = new ObservableCollection<TempGood>();
+
             _currentPerson = new Person();
             _currentCrossing = new Crossing();
             _currentVehicle = new Vehicle();
             _selectedCrossingType = CrossingTypes[0];
             _windowTitle = "";
             _statusMessage = "";
+
             InitializeNewEntry();
             _ = LoadInitialData();
         }
@@ -93,7 +114,10 @@ namespace CheckpointApp.ViewModels
 
         partial void OnSelectedCrossingTypeChanged(string value)
         {
-            CurrentCrossing.CrossingType = value;
+            if (value != null)
+            {
+                CurrentCrossing.CrossingType = value;
+            }
             if (!IsVehicleInfoEnabled)
             {
                 CurrentVehicle = new Vehicle();
@@ -112,8 +136,9 @@ namespace CheckpointApp.ViewModels
             CurrentVehicle = new Vehicle();
             CurrentPersonDob = null;
             SelectedCrossingType = CrossingTypes[0];
+            CurrentCrossing.CrossingType = SelectedCrossingType; // Синхронизация состояния
             CurrentPerson.PropertyChanged += OnCurrentPersonPropertyChanged;
-            TemporaryGoodsList = new ObservableCollection<TempGood>();
+            TemporaryGoodsList.Clear();
             StatusMessage = "Готов к работе.";
             CrossingsView.Refresh();
         }
@@ -121,12 +146,29 @@ namespace CheckpointApp.ViewModels
         private async Task LoadInitialData()
         {
             StatusMessage = "Загрузка данных...";
-            var crossings = await _databaseService.GetAllCrossingsAsync();
+            var crossings = (await _databaseService.GetAllCrossingsAsync()).ToList();
             AllCrossings.Clear();
             foreach (var crossing in crossings)
             {
                 AllCrossings.Add(crossing);
             }
+
+            var purposes = await _databaseService.GetDistinctValuesAsync("crossings", "purpose");
+            AllPurposes.Clear();
+            foreach (var p in purposes) AllPurposes.Add(p);
+
+            var destinations = await _databaseService.GetDistinctValuesAsync("crossings", "destination_town");
+            AllDestinations.Clear();
+            foreach (var d in destinations) AllDestinations.Add(d);
+
+            var makes = await _databaseService.GetDistinctValuesAsync("vehicles", "make");
+            AllVehicleMakes.Clear();
+            foreach (var m in makes) AllVehicleMakes.Add(m);
+
+            var citizenships = await _databaseService.GetDistinctValuesAsync("persons", "citizenship");
+            AllCitizenships.Clear();
+            foreach (var c in citizenships) AllCitizenships.Add(c);
+
             StatusMessage = $"Загружено {AllCrossings.Count} записей.";
         }
 
@@ -158,6 +200,16 @@ namespace CheckpointApp.ViewModels
             StatusMessage = "Сохранение...";
             try
             {
+                // --- ИСПРАВЛЕНИЕ 1: Принудительная синхронизация перед сохранением ---
+                CurrentCrossing.CrossingType = SelectedCrossingType;
+
+                Debug.WriteLine("--- SAVING CROSSING ---");
+                Debug.WriteLine($"Direction: {CurrentCrossing.Direction}");
+                Debug.WriteLine($"Crossing Type: {CurrentCrossing.CrossingType}");
+                Debug.WriteLine($"Purpose: {CurrentCrossing.Purpose}");
+                Debug.WriteLine($"Destination: {CurrentCrossing.DestinationTown}");
+                Debug.WriteLine("-----------------------");
+
                 CurrentPerson.LastName = CurrentPerson.LastName.ToUpper();
                 CurrentPerson.FirstName = CurrentPerson.FirstName.ToUpper();
                 CurrentPerson.Patronymic = CurrentPerson.Patronymic?.ToUpper();
@@ -176,9 +228,6 @@ namespace CheckpointApp.ViewModels
                 }
                 else
                 {
-                    // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-                    // Было: person.ID
-                    // Стало: person.Id
                     personId = person.Id;
                 }
 
@@ -208,6 +257,11 @@ namespace CheckpointApp.ViewModels
                     await _databaseService.AddGoodsAsync(goodsToSave);
                 }
 
+                if (!string.IsNullOrWhiteSpace(CurrentCrossing.Purpose) && !AllPurposes.Contains(CurrentCrossing.Purpose)) AllPurposes.Add(CurrentCrossing.Purpose);
+                if (!string.IsNullOrWhiteSpace(CurrentCrossing.DestinationTown) && !AllDestinations.Contains(CurrentCrossing.DestinationTown)) AllDestinations.Add(CurrentCrossing.DestinationTown);
+                if (!string.IsNullOrWhiteSpace(CurrentVehicle.Make) && !AllVehicleMakes.Contains(CurrentVehicle.Make)) AllVehicleMakes.Add(CurrentVehicle.Make);
+                if (!string.IsNullOrWhiteSpace(CurrentPerson.Citizenship) && !AllCitizenships.Contains(CurrentPerson.Citizenship)) AllCitizenships.Add(CurrentPerson.Citizenship);
+
                 StatusMessage = $"Пересечение ID: {newCrossingId} успешно сохранено.";
                 ClearForm();
                 await LoadInitialData();
@@ -216,6 +270,75 @@ namespace CheckpointApp.ViewModels
             {
                 MessageBox.Show($"Произошла ошибка при сохранении: {ex.Message}", "Ошибка БД", MessageBoxButton.OK, MessageBoxImage.Error);
                 StatusMessage = "Ошибка сохранения.";
+            }
+        }
+
+        [RelayCommand]
+        private async Task SelectCrossing()
+        {
+            if (SelectedCrossing == null) return;
+
+            StatusMessage = "Загрузка данных...";
+            try
+            {
+                // --- ИСПРАВЛЕНИЕ 2: Полная перезагрузка данных по двойному клику ---
+
+                // 1. Загружаем полную информацию о человеке из БД
+                var personFromDb = await _databaseService.FindPersonByPassportAsync(SelectedCrossing.PersonPassport);
+                if (personFromDb == null)
+                {
+                    StatusMessage = "Не удалось найти данные выбранного человека.";
+                    return;
+                }
+
+                // 2. Отписываемся от событий старого объекта и заменяем его новым
+                CurrentPerson.PropertyChanged -= OnCurrentPersonPropertyChanged;
+                CurrentPerson = personFromDb; // Теперь CurrentPerson содержит все данные, включая примечания
+                CurrentPerson.PropertyChanged += OnCurrentPersonPropertyChanged;
+
+                // 3. Устанавливаем дату рождения
+                if (DateTime.TryParse(personFromDb.Dob, out var dob))
+                {
+                    CurrentPersonDob = dob;
+                }
+
+                // 4. Загружаем данные о ТС, если они есть
+                if (SelectedCrossing.VehicleId.HasValue && !string.IsNullOrWhiteSpace(SelectedCrossing.VehicleInfo) && SelectedCrossing.VehicleInfo.Contains('/'))
+                {
+                    var plate = SelectedCrossing.VehicleInfo.Split('/')[1].Trim();
+                    var vehicleFromDb = await _databaseService.FindVehicleByLicensePlateAsync(plate);
+                    CurrentVehicle = vehicleFromDb ?? new Vehicle();
+                }
+                else
+                {
+                    CurrentVehicle = new Vehicle();
+                }
+
+                // 5. Создаем НОВЫЙ объект пересечения и полностью его заполняем
+                var newCrossing = new Crossing
+                {
+                    Purpose = SelectedCrossing.Purpose,
+                    DestinationTown = SelectedCrossing.DestinationTown,
+                    CrossingType = SelectedCrossing.CrossingType,
+                    // 6. Меняем направление на противоположное
+                    Direction = SelectedCrossing.Direction == "ВЪЕЗД" ? "ВЫЕЗД" : "ВЪЕЗД"
+                };
+                CurrentCrossing = newCrossing;
+
+                // 7. Обновляем все связанные свойства UI, чтобы интерфейс отреагировал
+                SelectedCrossingType = CurrentCrossing.CrossingType;
+                OnPropertyChanged(nameof(IsDirectionIn));
+                OnPropertyChanged(nameof(IsDirectionOut));
+
+                // 8. Очищаем временные списки
+                TemporaryGoodsList.Clear();
+
+                StatusMessage = $"Данные для {CurrentPerson.LastName} загружены. Готово к созданию нового пересечения.";
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = "Ошибка при загрузке данных.";
+                MessageBox.Show($"Произошла ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
