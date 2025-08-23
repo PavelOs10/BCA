@@ -1,21 +1,23 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Windows.Data;
 using System.Threading.Tasks;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CheckpointApp.DataAccess;
 using CheckpointApp.Models;
-using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace CheckpointApp.ViewModels
 {
     public partial class WantedListManagementViewModel : ObservableObject
     {
         private readonly DatabaseService _databaseService;
+        private readonly ObservableCollection<WantedPerson> _allWantedPersons;
 
-        [ObservableProperty]
-        private ObservableCollection<WantedPerson> _wantedPersons;
+        public ICollectionView WantedPersonsView { get; }
 
         [ObservableProperty]
         private WantedPerson _newWantedPerson;
@@ -24,42 +26,71 @@ namespace CheckpointApp.ViewModels
         private DateTime? _newWantedPersonDob;
 
         [ObservableProperty]
-        private WantedPerson _selectedPerson;
+        private WantedPerson? _selectedPerson;
 
         [ObservableProperty]
         private string _statusText;
 
+        [ObservableProperty]
+        private string _filterText = string.Empty;
+
         public WantedListManagementViewModel(DatabaseService databaseService)
         {
             _databaseService = databaseService;
-            NewWantedPerson = new WantedPerson();
+            _allWantedPersons = new ObservableCollection<WantedPerson>();
+            WantedPersonsView = CollectionViewSource.GetDefaultView(_allWantedPersons);
+            WantedPersonsView.Filter = FilterPersons;
+
+            _newWantedPerson = new WantedPerson();
+            _statusText = "";
             _ = LoadDataAsync();
+        }
+
+        private bool FilterPersons(object obj)
+        {
+            if (string.IsNullOrWhiteSpace(FilterText))
+                return true;
+
+            if (obj is WantedPerson person)
+            {
+                return person.LastName.StartsWith(FilterText, StringComparison.OrdinalIgnoreCase) ||
+                       person.FirstName.StartsWith(FilterText, StringComparison.OrdinalIgnoreCase);
+            }
+            return false;
+        }
+
+        partial void OnFilterTextChanged(string value)
+        {
+            WantedPersonsView.Refresh();
         }
 
         private async Task LoadDataAsync()
         {
             var persons = await _databaseService.GetWantedPersonsAsync();
-            WantedPersons = new ObservableCollection<WantedPerson>(persons);
+            _allWantedPersons.Clear();
+            foreach (var person in persons)
+            {
+                _allWantedPersons.Add(person);
+            }
             UpdateStatus();
         }
 
         private void UpdateStatus()
         {
-            StatusText = $"Всего в списке: {WantedPersons.Count} чел. | Последнее обновление: {DateTime.Now:G}";
+            StatusText = $"Всего в списке: {_allWantedPersons.Count} чел. | Последнее обновление: {DateTime.Now:G}";
         }
 
         [RelayCommand]
         private async Task AddPerson()
         {
             if (string.IsNullOrWhiteSpace(NewWantedPerson.LastName) ||
-                string.IsNullOrWhiteSpace(NewWantedPerson.FirstName) ||
-                NewWantedPersonDob == null)
+                string.IsNullOrWhiteSpace(NewWantedPerson.FirstName))
             {
-                MessageBox.Show("Поля 'Фамилия', 'Имя' и 'Дата рождения' обязательны для заполнения.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Поля 'Фамилия' и 'Имя' обязательны для заполнения.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            NewWantedPerson.Dob = NewWantedPersonDob.Value.ToString("dd.MM.yyyy");
+            NewWantedPerson.Dob = NewWantedPersonDob.HasValue ? NewWantedPersonDob.Value.ToString("dd.MM.yyyy") : string.Empty;
             NewWantedPerson.LastName = NewWantedPerson.LastName.ToUpper();
             NewWantedPerson.FirstName = NewWantedPerson.FirstName.ToUpper();
             NewWantedPerson.Patronymic = NewWantedPerson.Patronymic?.ToUpper();

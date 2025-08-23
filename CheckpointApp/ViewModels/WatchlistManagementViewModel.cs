@@ -1,21 +1,23 @@
 ﻿using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Data;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CheckpointApp.DataAccess;
 using CheckpointApp.Models;
-using DocumentFormat.OpenXml.Wordprocessing;
 
 namespace CheckpointApp.ViewModels
 {
     public partial class WatchlistManagementViewModel : ObservableObject
     {
         private readonly DatabaseService _databaseService;
+        private readonly ObservableCollection<WatchlistPerson> _allWatchlistPersons;
 
-        [ObservableProperty]
-        private ObservableCollection<WatchlistPerson> _watchlistPersons;
+        public ICollectionView WatchlistPersonsView { get; }
 
         [ObservableProperty]
         private WatchlistPerson _newWatchlistPerson;
@@ -24,42 +26,71 @@ namespace CheckpointApp.ViewModels
         private DateTime? _newWatchlistPersonDob;
 
         [ObservableProperty]
-        private WatchlistPerson _selectedPerson;
+        private WatchlistPerson? _selectedPerson;
 
         [ObservableProperty]
         private string _statusText;
 
+        [ObservableProperty]
+        private string _filterText = string.Empty;
+
         public WatchlistManagementViewModel(DatabaseService databaseService)
         {
             _databaseService = databaseService;
-            NewWatchlistPerson = new WatchlistPerson();
+            _allWatchlistPersons = new ObservableCollection<WatchlistPerson>();
+            WatchlistPersonsView = CollectionViewSource.GetDefaultView(_allWatchlistPersons);
+            WatchlistPersonsView.Filter = FilterPersons;
+
+            _newWatchlistPerson = new WatchlistPerson();
+            _statusText = "";
             _ = LoadDataAsync();
+        }
+
+        private bool FilterPersons(object obj)
+        {
+            if (string.IsNullOrWhiteSpace(FilterText))
+                return true;
+
+            if (obj is WatchlistPerson person)
+            {
+                return person.LastName.StartsWith(FilterText, StringComparison.OrdinalIgnoreCase) ||
+                       person.FirstName.StartsWith(FilterText, StringComparison.OrdinalIgnoreCase);
+            }
+            return false;
+        }
+
+        partial void OnFilterTextChanged(string value)
+        {
+            WatchlistPersonsView.Refresh();
         }
 
         private async Task LoadDataAsync()
         {
             var persons = await _databaseService.GetWatchlistPersonsAsync();
-            WatchlistPersons = new ObservableCollection<WatchlistPerson>(persons);
+            _allWatchlistPersons.Clear();
+            foreach (var person in persons)
+            {
+                _allWatchlistPersons.Add(person);
+            }
             UpdateStatus();
         }
 
         private void UpdateStatus()
         {
-            StatusText = $"Всего в списке: {WatchlistPersons.Count} чел. | Последнее обновление: {DateTime.Now:G}";
+            StatusText = $"Всего в списке: {_allWatchlistPersons.Count} чел. | Последнее обновление: {DateTime.Now:G}";
         }
 
         [RelayCommand]
         private async Task AddPerson()
         {
             if (string.IsNullOrWhiteSpace(NewWatchlistPerson.LastName) ||
-                string.IsNullOrWhiteSpace(NewWatchlistPerson.FirstName) ||
-                NewWatchlistPersonDob == null)
+                string.IsNullOrWhiteSpace(NewWatchlistPerson.FirstName))
             {
-                MessageBox.Show("Поля 'Фамилия', 'Имя' и 'Дата рождения' обязательны.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Поля 'Фамилия' и 'Имя' обязательны для заполнения.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            NewWatchlistPerson.Dob = NewWatchlistPersonDob.Value.ToString("dd.MM.yyyy");
+            NewWatchlistPerson.Dob = NewWatchlistPersonDob.HasValue ? NewWatchlistPersonDob.Value.ToString("dd.MM.yyyy") : string.Empty;
             NewWatchlistPerson.LastName = NewWatchlistPerson.LastName.ToUpper();
             NewWatchlistPerson.FirstName = NewWatchlistPerson.FirstName.ToUpper();
             NewWatchlistPerson.Patronymic = NewWatchlistPerson.Patronymic?.ToUpper();

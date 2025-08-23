@@ -81,7 +81,7 @@ namespace CheckpointApp.DataAccess
                     last_name TEXT NOT NULL,
                     first_name TEXT NOT NULL,
                     patronymic TEXT,
-                    dob TEXT NOT NULL,
+                    dob TEXT,
                     info TEXT,
                     actions TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -91,7 +91,7 @@ namespace CheckpointApp.DataAccess
                     last_name TEXT NOT NULL,
                     first_name TEXT NOT NULL,
                     patronymic TEXT,
-                    dob TEXT NOT NULL,
+                    dob TEXT,
                     reason TEXT
                 );"
             };
@@ -331,18 +331,40 @@ namespace CheckpointApp.DataAccess
         #region Security Lists Methods
         public async Task<IEnumerable<WantedPerson>> GetWantedPersonsAsync()
         {
+            // --- ИСПРАВЛЕНИЕ: Явное сопоставление полей ---
             using var connection = GetConnection();
-            return await connection.QueryAsync<WantedPerson>("SELECT * FROM wanted_persons");
+            var sql = @"
+                SELECT
+                    id AS ID,
+                    last_name AS LastName,
+                    first_name AS FirstName,
+                    patronymic AS Patronymic,
+                    dob AS Dob,
+                    info AS Info,
+                    actions AS Actions,
+                    created_at AS CreatedAt
+                FROM wanted_persons";
+            return await connection.QueryAsync<WantedPerson>(sql);
         }
 
         public async Task<int> AddWantedPersonAsync(WantedPerson person)
         {
+            // --- ИСПРАВЛЕНИЕ: Явная передача параметров ---
             using var connection = GetConnection();
             var sql = @"
                 INSERT INTO wanted_persons (last_name, first_name, patronymic, dob, info, actions)
                 VALUES (@LastName, @FirstName, @Patronymic, @Dob, @Info, @Actions)
                 RETURNING id;";
-            return await connection.ExecuteScalarAsync<int>(sql, person);
+
+            var parameters = new DynamicParameters();
+            parameters.Add("LastName", person.LastName);
+            parameters.Add("FirstName", person.FirstName);
+            parameters.Add("Patronymic", person.Patronymic);
+            parameters.Add("Dob", person.Dob);
+            parameters.Add("Info", person.Info);
+            parameters.Add("Actions", person.Actions);
+
+            return await connection.ExecuteScalarAsync<int>(sql, parameters);
         }
 
         public async Task<bool> DeleteWantedPersonAsync(int id)
@@ -355,18 +377,37 @@ namespace CheckpointApp.DataAccess
 
         public async Task<IEnumerable<WatchlistPerson>> GetWatchlistPersonsAsync()
         {
+            // --- ИСПРАВЛЕНИЕ: Явное сопоставление полей ---
             using var connection = GetConnection();
-            return await connection.QueryAsync<WatchlistPerson>("SELECT * FROM watchlist_persons");
+            var sql = @"
+                SELECT
+                    id AS ID,
+                    last_name AS LastName,
+                    first_name AS FirstName,
+                    patronymic AS Patronymic,
+                    dob AS Dob,
+                    reason AS Reason
+                FROM watchlist_persons";
+            return await connection.QueryAsync<WatchlistPerson>(sql);
         }
 
         public async Task<int> AddWatchlistPersonAsync(WatchlistPerson person)
         {
+            // --- ИСПРАВЛЕНИЕ: Явная передача параметров ---
             using var connection = GetConnection();
             var sql = @"
                 INSERT INTO watchlist_persons (last_name, first_name, patronymic, dob, reason)
                 VALUES (@LastName, @FirstName, @Patronymic, @Dob, @Reason)
                 RETURNING id;";
-            return await connection.ExecuteScalarAsync<int>(sql, person);
+
+            var parameters = new DynamicParameters();
+            parameters.Add("LastName", person.LastName);
+            parameters.Add("FirstName", person.FirstName);
+            parameters.Add("Patronymic", person.Patronymic);
+            parameters.Add("Dob", person.Dob);
+            parameters.Add("Reason", person.Reason);
+
+            return await connection.ExecuteScalarAsync<int>(sql, parameters);
         }
 
         public async Task<bool> DeleteWatchlistPersonAsync(int id)
@@ -392,7 +433,6 @@ namespace CheckpointApp.DataAccess
 
         #region Dashboard and Analytics Methods
 
-        // --- ВОССТАНОВЛЕННЫЙ МЕТОД ---
         public async Task<IEnumerable<PersonInZone>> GetPersonsInZoneAsync()
         {
             using var connection = GetConnection();

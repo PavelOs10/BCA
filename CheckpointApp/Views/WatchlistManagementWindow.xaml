@@ -16,6 +16,7 @@
 		<Grid Margin="10">
 			<Grid.RowDefinitions>
 				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="Auto"/>
 				<RowDefinition Height="*"/>
 			</Grid.RowDefinitions>
 
@@ -28,9 +29,9 @@
 					</Grid.ColumnDefinitions>
 
 					<StackPanel Grid.Column="0" Margin="5">
-						<Label Content="Фамилия:"/>
+						<Label Content="Фамилия (обязательно):"/>
 						<TextBox Text="{Binding NewWatchlistPerson.LastName, UpdateSourceTrigger=PropertyChanged}"/>
-						<Label Content="Имя:"/>
+						<Label Content="Имя (обязательно):"/>
 						<TextBox Text="{Binding NewWatchlistPerson.FirstName, UpdateSourceTrigger=PropertyChanged}"/>
 						<Label Content="Отчество:"/>
 						<TextBox Text="{Binding NewWatchlistPerson.Patronymic, UpdateSourceTrigger=PropertyChanged}"/>
@@ -51,7 +52,13 @@
 				</Grid>
 			</GroupBox>
 
-			<ListView Grid.Row="1" Margin="0,10,0,0" ItemsSource="{Binding WatchlistPersons}" SelectedItem="{Binding SelectedPerson}">
+			<!-- ИЗМЕНЕНИЕ: Поле для живого поиска (комментарий исправлен) -->
+			<StackPanel Grid.Row="1" Orientation="Horizontal" Margin="0,10,0,5">
+				<Label Content="Поиск по фамилии/имени:" VerticalAlignment="Center"/>
+				<TextBox Width="300" Text="{Binding FilterText, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>
+			</StackPanel>
+
+			<ListView Grid.Row="2" Margin="0,0,0,0" ItemsSource="{Binding WatchlistPersonsView}" SelectedItem="{Binding SelectedPerson}">
 				<ListView.View>
 					<GridView>
 						<GridViewColumn Header="ID" DisplayMemberBinding="{Binding ID}" Width="50"/>
