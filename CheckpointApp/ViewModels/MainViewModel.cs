@@ -52,6 +52,17 @@ namespace CheckpointApp.ViewModels
         [ObservableProperty] private string _statusMessage;
         [ObservableProperty] private bool _isAdmin;
 
+        // --- СВОЙСТВА ДЛЯ ПАНЕЛИ МОНИТОРИНГА ---
+        [ObservableProperty] private DateTime _dashboardStartDate;
+        [ObservableProperty] private DateTime _dashboardEndDate;
+        [ObservableProperty] private int _enteredPersonsCount;
+        [ObservableProperty] private int _enteredVehiclesCount;
+        [ObservableProperty] private int _exitedPersonsCount;
+        [ObservableProperty] private int _exitedVehiclesCount;
+        [ObservableProperty] private int _wantedPersonsTotalCount;
+        [ObservableProperty] private int _watchlistPersonsTotalCount;
+
+
         public MainViewModel(DatabaseService databaseService, User currentUser)
         {
             _databaseService = databaseService;
@@ -79,8 +90,14 @@ namespace CheckpointApp.ViewModels
             _windowTitle = "";
             _statusMessage = "";
 
+            // --- ИНИЦИАЛИЗАЦИЯ ДЛЯ ПАНЕЛИ МОНИТОРИНГА ---
+            _dashboardStartDate = DateTime.Today; // Начало текущего дня
+            _dashboardEndDate = DateTime.Today.AddDays(1).AddTicks(-1); // Конец текущего дня
+
             InitializeNewEntry();
             _ = LoadInitialData();
+            _ = UpdateSecurityListsCountsAsync(); // Первоначальная загрузка данных для списков
+            _ = UpdateDashboardStats(); // Первоначальная загрузка статистики за сегодня
         }
 
         private bool FilterCrossings(object obj)
@@ -136,7 +153,7 @@ namespace CheckpointApp.ViewModels
             CurrentVehicle = new Vehicle();
             CurrentPersonDob = null;
             SelectedCrossingType = CrossingTypes[0];
-            CurrentCrossing.CrossingType = SelectedCrossingType; // Синхронизация состояния
+            CurrentCrossing.CrossingType = SelectedCrossingType;
             CurrentPerson.PropertyChanged += OnCurrentPersonPropertyChanged;
             TemporaryGoodsList.Clear();
             StatusMessage = "Готов к работе.";
@@ -200,15 +217,7 @@ namespace CheckpointApp.ViewModels
             StatusMessage = "Сохранение...";
             try
             {
-                // --- ИСПРАВЛЕНИЕ 1: Принудительная синхронизация перед сохранением ---
                 CurrentCrossing.CrossingType = SelectedCrossingType;
-
-                Debug.WriteLine("--- SAVING CROSSING ---");
-                Debug.WriteLine($"Direction: {CurrentCrossing.Direction}");
-                Debug.WriteLine($"Crossing Type: {CurrentCrossing.CrossingType}");
-                Debug.WriteLine($"Purpose: {CurrentCrossing.Purpose}");
-                Debug.WriteLine($"Destination: {CurrentCrossing.DestinationTown}");
-                Debug.WriteLine("-----------------------");
 
                 CurrentPerson.LastName = CurrentPerson.LastName.ToUpper();
                 CurrentPerson.FirstName = CurrentPerson.FirstName.ToUpper();
@@ -265,6 +274,7 @@ namespace CheckpointApp.ViewModels
                 StatusMessage = $"Пересечение ID: {newCrossingId} успешно сохранено.";
                 ClearForm();
                 await LoadInitialData();
+                await UpdateDashboardStats(); // Обновляем статистику после сохранения
             }
             catch (Exception ex)
             {
@@ -281,9 +291,6 @@ namespace CheckpointApp.ViewModels
             StatusMessage = "Загрузка данных...";
             try
             {
-                // --- ИСПРАВЛЕНИЕ 2: Полная перезагрузка данных по двойному клику ---
-
-                // 1. Загружаем полную информацию о человеке из БД
                 var personFromDb = await _databaseService.FindPersonByPassportAsync(SelectedCrossing.PersonPassport);
                 if (personFromDb == null)
                 {
@@ -291,18 +298,15 @@ namespace CheckpointApp.ViewModels
                     return;
                 }
 
-                // 2. Отписываемся от событий старого объекта и заменяем его новым
                 CurrentPerson.PropertyChanged -= OnCurrentPersonPropertyChanged;
-                CurrentPerson = personFromDb; // Теперь CurrentPerson содержит все данные, включая примечания
+                CurrentPerson = personFromDb;
                 CurrentPerson.PropertyChanged += OnCurrentPersonPropertyChanged;
 
-                // 3. Устанавливаем дату рождения
                 if (DateTime.TryParse(personFromDb.Dob, out var dob))
                 {
                     CurrentPersonDob = dob;
                 }
 
-                // 4. Загружаем данные о ТС, если они есть
                 if (SelectedCrossing.VehicleId.HasValue && !string.IsNullOrWhiteSpace(SelectedCrossing.VehicleInfo) && SelectedCrossing.VehicleInfo.Contains('/'))
                 {
                     var plate = SelectedCrossing.VehicleInfo.Split('/')[1].Trim();
@@ -314,23 +318,19 @@ namespace CheckpointApp.ViewModels
                     CurrentVehicle = new Vehicle();
                 }
 
-                // 5. Создаем НОВЫЙ объект пересечения и полностью его заполняем
                 var newCrossing = new Crossing
                 {
                     Purpose = SelectedCrossing.Purpose,
                     DestinationTown = SelectedCrossing.DestinationTown,
                     CrossingType = SelectedCrossing.CrossingType,
-                    // 6. Меняем направление на противоположное
                     Direction = SelectedCrossing.Direction == "ВЪЕЗД" ? "ВЫЕЗД" : "ВЪЕЗД"
                 };
                 CurrentCrossing = newCrossing;
 
-                // 7. Обновляем все связанные свойства UI, чтобы интерфейс отреагировал
                 SelectedCrossingType = CurrentCrossing.CrossingType;
                 OnPropertyChanged(nameof(IsDirectionIn));
                 OnPropertyChanged(nameof(IsDirectionOut));
 
-                // 8. Очищаем временные списки
                 TemporaryGoodsList.Clear();
 
                 StatusMessage = $"Данные для {CurrentPerson.LastName} загружены. Готово к созданию нового пересечения.";
@@ -341,6 +341,27 @@ namespace CheckpointApp.ViewModels
                 MessageBox.Show($"Произошла ошибка: {ex.Message}", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
+        // --- КОМАНДЫ И МЕТОДЫ ДЛЯ ПАНЕЛИ МОНИТОРИНГА ---
+
+        [RelayCommand]
+        private async Task UpdateDashboardStats()
+        {
+            StatusMessage = "Обновление статистики...";
+            var stats = await _databaseService.GetDashboardStatsAsync(DashboardStartDate, DashboardEndDate);
+            EnteredPersonsCount = stats.EnteredPersons;
+            EnteredVehiclesCount = stats.EnteredVehicles;
+            ExitedPersonsCount = stats.ExitedPersons;
+            ExitedVehiclesCount = stats.ExitedVehicles;
+            StatusMessage = "Статистика по периоду обновлена.";
+        }
+
+        private async Task UpdateSecurityListsCountsAsync()
+        {
+            WantedPersonsTotalCount = await _databaseService.GetWantedPersonsCountAsync();
+            WatchlistPersonsTotalCount = await _databaseService.GetWatchlistPersonsCountAsync();
+        }
+
 
         [RelayCommand]
         private void ShowGoodsWindow()
@@ -362,6 +383,7 @@ namespace CheckpointApp.ViewModels
         private async Task RefreshData()
         {
             await LoadInitialData();
+            await UpdateDashboardStats();
         }
 
         [RelayCommand]
@@ -370,7 +392,7 @@ namespace CheckpointApp.ViewModels
             Application.Current.Shutdown();
         }
         [RelayCommand]
-        private void ManageWantedList()
+        private async Task ManageWantedList()
         {
             var window = new WantedListManagementWindow
             {
@@ -378,9 +400,10 @@ namespace CheckpointApp.ViewModels
                 DataContext = new WantedListManagementViewModel(_databaseService)
             };
             window.ShowDialog();
+            await UpdateSecurityListsCountsAsync(); // Обновляем счетчик после закрытия окна
         }
         [RelayCommand]
-        private void ManageWatchlist()
+        private async Task ManageWatchlist()
         {
             var window = new WatchlistManagementWindow
             {
@@ -388,6 +411,7 @@ namespace CheckpointApp.ViewModels
                 DataContext = new WatchlistManagementViewModel(_databaseService)
             };
             window.ShowDialog();
+            await UpdateSecurityListsCountsAsync(); // Обновляем счетчик после закрытия окна
         }
         [RelayCommand]
         private void ManageUsers()

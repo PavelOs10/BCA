@@ -247,7 +247,7 @@ namespace CheckpointApp.DataAccess
             return await connection.QueryAsync<Crossing>(sql, new
             {
                 StartDate = startDate.ToString("yyyy-MM-dd HH:mm:ss"),
-                EndDate = endDate.AddDays(1).ToString("yyyy-MM-dd HH:mm:ss")
+                EndDate = endDate.ToString("yyyy-MM-dd HH:mm:ss")
             });
         }
 
@@ -285,10 +285,6 @@ namespace CheckpointApp.DataAccess
 
         public async Task<Vehicle?> FindVehicleByLicensePlateAsync(string licensePlate)
         {
-            // --- ИСПРАВЛЕНИЕ ЗДЕСЬ ---
-            // Заменяем "SELECT *" на явное перечисление столбцов с псевдонимами (AS),
-            // чтобы Dapper гарантированно правильно сопоставлял данные из БД
-            // со свойствами C# модели Vehicle.
             using var connection = GetConnection();
             var sql = @"
                 SELECT
@@ -380,9 +376,23 @@ namespace CheckpointApp.DataAccess
             var affectedRows = await connection.ExecuteAsync(sql, new { Id = id });
             return affectedRows > 0;
         }
+
+        public async Task<int> GetWantedPersonsCountAsync()
+        {
+            using var connection = GetConnection();
+            return await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM wanted_persons");
+        }
+
+        public async Task<int> GetWatchlistPersonsCountAsync()
+        {
+            using var connection = GetConnection();
+            return await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM watchlist_persons");
+        }
         #endregion
 
-        #region Analytics Methods
+        #region Dashboard and Analytics Methods
+
+        // --- ВОССТАНОВЛЕННЫЙ МЕТОД ---
         public async Task<IEnumerable<PersonInZone>> GetPersonsInZoneAsync()
         {
             using var connection = GetConnection();
@@ -410,6 +420,26 @@ namespace CheckpointApp.DataAccess
                 ORDER BY c.destination_town, c.timestamp DESC;
             ";
             return await connection.QueryAsync<PersonInZone>(sql);
+        }
+
+        public async Task<DashboardStats> GetDashboardStatsAsync(DateTime startDate, DateTime endDate)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                SELECT
+                    SUM(CASE WHEN direction = 'ВЪЕЗД' THEN 1 ELSE 0 END) AS EnteredPersons,
+                    COUNT(DISTINCT CASE WHEN direction = 'ВЪЕЗД' THEN vehicle_id END) AS EnteredVehicles,
+                    SUM(CASE WHEN direction = 'ВЫЕЗД' THEN 1 ELSE 0 END) AS ExitedPersons,
+                    COUNT(DISTINCT CASE WHEN direction = 'ВЫЕЗД' THEN vehicle_id END) AS ExitedVehicles
+                FROM crossings
+                WHERE timestamp BETWEEN @StartDate AND @EndDate";
+
+            var result = await connection.QuerySingleOrDefaultAsync<DashboardStats>(sql, new
+            {
+                StartDate = startDate.ToString("yyyy-MM-dd HH:mm:ss"),
+                EndDate = endDate.ToString("yyyy-MM-dd HH:mm:ss")
+            });
+            return result ?? new DashboardStats();
         }
         #endregion
     }

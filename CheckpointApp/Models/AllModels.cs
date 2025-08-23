@@ -54,7 +54,7 @@ namespace CheckpointApp.Models
         public string PersonPassport { get; set; } = string.Empty;
         public string VehicleInfo { get; set; } = string.Empty;
         public string OperatorUsername { get; set; } = string.Empty;
-        public string? Citizenship { get; set; } // <-- ИСПРАВЛЕНО: Добавлено недостающее поле
+        public string? Citizenship { get; set; }
     }
 
     // Модель товара/груза
@@ -109,5 +109,15 @@ namespace CheckpointApp.Models
         public string DestinationTown { get; set; } = string.Empty;
         public string Timestamp { get; set; } = string.Empty;
         public string VehicleInfo { get; set; } = string.Empty;
+    }
+
+    // --- НОВАЯ МОДЕЛЬ ---
+    // Модель для хранения статистики панели мониторинга
+    public class DashboardStats
+    {
+        public int EnteredPersons { get; set; }
+        public int EnteredVehicles { get; set; }
+        public int ExitedPersons { get; set; }
+        public int ExitedVehicles { get; set; }
     }
 }
