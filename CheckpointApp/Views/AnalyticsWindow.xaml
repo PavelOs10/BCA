@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:ScottPlot="clr-namespace:ScottPlot.WPF;assembly=ScottPlot.WPF"
+        xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.Wpf;assembly=LiveChartsCore.SkiaSharpView.Wpf"
         mc:Ignorable="d"
         Title="Аналитика пограничных пересечений" Height="800" Width="1200"
         WindowStartupLocation="CenterOwner">
@@ -14,6 +14,13 @@
                 <DatePicker SelectedDate="{Binding StartDate}" VerticalAlignment="Center" Margin="5"/>
                 <TextBlock Text="-" VerticalAlignment="Center"/>
                 <DatePicker SelectedDate="{Binding EndDate}" VerticalAlignment="Center" Margin="5"/>
+
+                <TextBlock Text="Группировка:" VerticalAlignment="Center" Margin="15,0,5,0"/>
+                <ComboBox ItemsSource="{Binding GroupingOptions}" 
+                          SelectedItem="{Binding SelectedGroupingOption}" 
+                          Width="120"
+                          VerticalAlignment="Center"/>
+
                 <Button Content="Сформировать отчет" Command="{Binding GenerateReportCommand}" Margin="20,5,5,5" Padding="10,2"/>
                 <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Margin="10,0" FontStyle="Italic"/>
             </StackPanel>
@@ -24,23 +31,16 @@
                 <TextBlock Text="{Binding SummaryText}" Margin="15" FontSize="16" TextWrapping="Wrap"/>
             </TabItem>
             <TabItem Header="Динамика">
-                <ScottPlot:WpfPlot Name="DynamicsPlot"/>
+                <lvc:CartesianChart Series="{Binding DynamicsSeries}" XAxes="{Binding DynamicsXAxes}" LegendPosition="Right"/>
             </TabItem>
             <TabItem Header="География">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <ScottPlot:WpfPlot Name="CitizenshipPiePlot" Grid.Column="0"/>
-                    <ScottPlot:WpfPlot Name="TopCitizenshipBarPlot" Grid.Column="1"/>
-                </Grid>
+                <lvc:PieChart Series="{Binding GeographySeries}" LegendPosition="Bottom"/>
             </TabItem>
             <TabItem Header="Нагрузка по времени">
-                <ScottPlot:WpfPlot Name="HeatmapPlot"/>
+                <lvc:CartesianChart Series="{Binding HeatmapSeries}" XAxes="{Binding HeatmapXAxes}" YAxes="{Binding HeatmapYAxes}" TooltipPosition="Left"/>
             </TabItem>
             <TabItem Header="Рейтинг операторов">
-                <ScottPlot:WpfPlot Name="OperatorsPlot"/>
+                <lvc:CartesianChart Series="{Binding OperatorsSeries}" YAxes="{Binding OperatorsYAxes}" LegendPosition="Right"/>
             </TabItem>
         </TabControl>
     </DockPanel>

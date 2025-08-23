@@ -3,16 +3,14 @@ using CheckpointApp.ViewModels;
 
 namespace CheckpointApp.Views
 {
+    /// <summary>
+    /// Interaction logic for AnalyticsWindow.xaml
+    /// </summary>
     public partial class AnalyticsWindow : Window
     {
         public AnalyticsWindow()
         {
             InitializeComponent();
-            // Передаем контролы для графиков в ViewModel
-            if (DataContext is AnalyticsViewModel vm)
-            {
-                vm.InitializePlots(DynamicsPlot, CitizenshipPiePlot, TopCitizenshipBarPlot, HeatmapPlot, OperatorsPlot);
-            }
         }
     }
 }

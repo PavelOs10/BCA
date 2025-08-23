@@ -7,8 +7,14 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CheckpointApp.DataAccess;
 using CheckpointApp.Models;
-using ScottPlot;
-using ScottPlot.WPF;
+using System.Globalization;
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
+using LiveChartsCore.SkiaSharpView.Painting;
+using SkiaSharp;
+using LiveChartsCore.Defaults;
+using LiveChartsCore.Measure;
+using LiveChartsCore.Drawing;
 
 namespace CheckpointApp.ViewModels
 {
@@ -16,8 +22,6 @@ namespace CheckpointApp.ViewModels
     {
         private readonly DatabaseService _databaseService;
         private List<Crossing> _crossingsData;
-
-        private WpfPlot? _dynamicsPlot, _citizenshipPiePlot, _topCitizenshipBarPlot, _heatmapPlot, _operatorsPlot;
 
         [ObservableProperty]
         private DateTime _startDate;
@@ -28,28 +32,34 @@ namespace CheckpointApp.ViewModels
         [ObservableProperty]
         private string _summaryText = "Выберите период и сформируйте отчет.";
 
+        public List<string> GroupingOptions { get; } = new List<string> { "По дням", "По неделям", "По месяцам" };
+        [ObservableProperty]
+        private string _selectedGroupingOption;
+
+        [ObservableProperty] private ISeries[] _dynamicsSeries = Array.Empty<ISeries>();
+        [ObservableProperty] private Axis[] _dynamicsXAxes = Array.Empty<Axis>();
+        [ObservableProperty] private ISeries[] _geographySeries = Array.Empty<ISeries>();
+        [ObservableProperty] private ISeries[] _heatmapSeries = Array.Empty<ISeries>();
+        [ObservableProperty] private Axis[] _heatmapXAxes = Array.Empty<Axis>();
+        [ObservableProperty] private Axis[] _heatmapYAxes = Array.Empty<Axis>();
+        [ObservableProperty] private ISeries[] _operatorsSeries = Array.Empty<ISeries>();
+        [ObservableProperty] private Axis[] _operatorsYAxes = Array.Empty<Axis>();
+
+
         public AnalyticsViewModel(DatabaseService databaseService)
         {
             _databaseService = databaseService;
             EndDate = DateTime.Today;
             StartDate = EndDate.AddMonths(-1);
+            _selectedGroupingOption = GroupingOptions[0];
             _crossingsData = new List<Crossing>();
-        }
-
-        public void InitializePlots(WpfPlot dyn, WpfPlot pie, WpfPlot bar, WpfPlot heat, WpfPlot ops)
-        {
-            _dynamicsPlot = dyn;
-            _citizenshipPiePlot = pie;
-            _topCitizenshipBarPlot = bar;
-            _heatmapPlot = heat;
-            _operatorsPlot = ops;
         }
 
         [RelayCommand]
         private async Task GenerateReport()
         {
             StatusText = "Загрузка данных...";
-            _crossingsData = (await _databaseService.GetCrossingsByDateRangeAsync(StartDate, EndDate)).ToList();
+            _crossingsData = (await _databaseService.GetCrossingsByDateRangeAsync(StartDate, EndDate.AddDays(1))).ToList();
             StatusText = $"Данные загружены. Обработано {_crossingsData.Count} записей.";
 
             if (!_crossingsData.Any())
@@ -68,11 +78,10 @@ namespace CheckpointApp.ViewModels
 
         private void ClearAllPlots()
         {
-            _dynamicsPlot?.Plot.Clear(); _dynamicsPlot?.Refresh();
-            _citizenshipPiePlot?.Plot.Clear(); _citizenshipPiePlot?.Refresh();
-            _topCitizenshipBarPlot?.Plot.Clear(); _topCitizenshipBarPlot?.Refresh();
-            _heatmapPlot?.Plot.Clear(); _heatmapPlot?.Refresh();
-            _operatorsPlot?.Plot.Clear(); _operatorsPlot?.Refresh();
+            DynamicsSeries = Array.Empty<ISeries>();
+            GeographySeries = Array.Empty<ISeries>();
+            HeatmapSeries = Array.Empty<ISeries>();
+            OperatorsSeries = Array.Empty<ISeries>();
         }
 
         private void GenerateSummary()
@@ -101,85 +110,57 @@ namespace CheckpointApp.ViewModels
 
         private void GenerateDynamicsPlot()
         {
-            if (_dynamicsPlot == null) return;
-            var plot = _dynamicsPlot.Plot;
-            plot.Clear();
+            var groupedData = _crossingsData.GroupBy(c =>
+            {
+                var date = DateTime.Parse(c.Timestamp).Date;
+                return SelectedGroupingOption switch
+                {
+                    "По неделям" => "Н" + CultureInfo.CurrentCulture.Calendar.GetWeekOfYear(date, CalendarWeekRule.FirstFourDayWeek, DayOfWeek.Monday) + "-" + date.Year,
+                    "По месяцам" => date.ToString("MMMM yyyy", new CultureInfo("ru-RU")),
+                    _ => date.ToString("dd.MM.yyyy")
+                };
+            }).Select(g => new
+            {
+                Period = g.Key,
+                Total = g.Count(),
+                Entered = g.Count(x => x.Direction == "ВЪЕЗД"),
+                Exited = g.Count(x => x.Direction == "ВЫЕЗД")
+            }).ToList();
 
-            var entries = _crossingsData.Where(c => c.Direction == "ВЪЕЗД")
-                .GroupBy(c => DateTime.Parse(c.Timestamp).Date)
-                .ToDictionary(g => g.Key, g => g.Count());
+            DynamicsSeries = new ISeries[]
+            {
+                new ColumnSeries<int> { Name = "Всего пересекло", Values = groupedData.Select(d => d.Total).ToList() },
+                new ColumnSeries<int> { Name = "Въехало", Values = groupedData.Select(d => d.Entered).ToList() },
+                new ColumnSeries<int> { Name = "Выехало", Values = groupedData.Select(d => d.Exited).ToList() }
+            };
 
-            var exits = _crossingsData.Where(c => c.Direction == "ВЫЕЗД")
-                .GroupBy(c => DateTime.Parse(c.Timestamp).Date)
-                .ToDictionary(g => g.Key, g => g.Count());
-
-            var allDates = entries.Keys.Union(exits.Keys).OrderBy(d => d).ToArray();
-            if (!allDates.Any()) return;
-
-            var entryValues = allDates.Select(d => (double)(entries.ContainsKey(d) ? entries[d] : 0)).ToArray();
-            var exitValues = allDates.Select(d => (double)(exits.ContainsKey(d) ? exits[d] : 0)).ToArray();
-
-            plot.Add.Bars(entryValues).Label = "Въезд";
-            plot.Add.Bars(exitValues).Label = "Выезд";
-
-            plot.Axes.Bottom.TickGenerator = new ScottPlot.TickGenerators.DateTimeAutomatic();
-            plot.Title("Динамика пересечений по дням");
-            plot.Legend.IsVisible = true;
-            plot.Legend.Location = Alignment.UpperRight;
-            _dynamicsPlot.Refresh();
+            DynamicsXAxes = new Axis[]
+            {
+                new Axis { Labels = groupedData.Select(d => d.Period).ToList(), LabelsRotation = 45 }
+            };
         }
 
         private void GenerateGeographyPlots()
         {
-            if (_citizenshipPiePlot == null || _topCitizenshipBarPlot == null) return;
+            var totalCrossings = _crossingsData.Count;
             var byCitizenship = _crossingsData
                 .GroupBy(c => c.Citizenship ?? "НЕ УКАЗАНО")
                 .Select(g => new { Citizenship = g.Key, Count = g.Count() })
                 .OrderByDescending(x => x.Count)
                 .ToList();
 
-            // Круговая диаграмма
-            var piePlot = _citizenshipPiePlot.Plot;
-            piePlot.Clear();
-            var top5 = byCitizenship.Take(5).ToList();
-            var othersCount = byCitizenship.Skip(5).Sum(x => x.Count);
-
-            List<PieSlice> slices = new();
-            foreach (var item in top5)
+            GeographySeries = byCitizenship.Select(item => new PieSeries<int>
             {
-                slices.Add(new PieSlice() { Value = item.Count, Label = item.Citizenship });
-            }
-            if (othersCount > 0)
-            {
-                slices.Add(new PieSlice() { Value = othersCount, Label = "ДРУГИЕ" });
-            }
-            piePlot.Add.Pie(slices);
-            piePlot.Title("Распределение по гражданству");
-            _citizenshipPiePlot.Refresh();
-
-            // Столбчатая диаграмма
-            var barPlot = _topCitizenshipBarPlot.Plot;
-            barPlot.Clear();
-            var top15 = byCitizenship.Take(15).Reverse().ToList();
-            var barValues = top15.Select(x => (double)x.Count).ToArray();
-
-            var bars = barPlot.Add.Bars(barValues);
-            // --- ИСПРАВЛЕНО: Orientation заменено на Horizontal ---
-            bars.Horizontal = true;
-
-            var ticks = top15.Select((item, index) => new Tick(index, item.Citizenship)).ToArray();
-            barPlot.Axes.Left.TickGenerator = new ScottPlot.TickGenerators.NumericManual(ticks);
-            barPlot.Axes.Left.MajorTickStyle.Length = 0;
-            barPlot.Title("Топ-15 национальностей");
-            _topCitizenshipBarPlot.Refresh();
+                Name = item.Citizenship,
+                Values = new[] { item.Count },
+                DataLabelsPaint = new SolidColorPaint(SKColors.White),
+                DataLabelsPosition = PolarLabelsPosition.Outer,
+                DataLabelsFormatter = p => $"{p.Model} ({(double)p.Model / totalCrossings:P1})"
+            }).ToArray();
         }
 
         private void GenerateHeatmapPlot()
         {
-            if (_heatmapPlot == null) return;
-            var plot = _heatmapPlot.Plot;
-            plot.Clear();
-
             double[,] intensities = new double[7, 24];
             foreach (var crossing in _crossingsData)
             {
@@ -189,40 +170,57 @@ namespace CheckpointApp.ViewModels
                 intensities[dayOfWeek, hour]++;
             }
 
-            plot.Add.Heatmap(intensities);
-            var yTicks = new Tick[]
+            var points = new List<WeightedPoint>();
+            for (int i = 0; i < 7; i++)
             {
-                new (0, "Пн"), new (1, "Вт"), new (2, "Ср"), new (3, "Чт"),
-                new (4, "Пт"), new (5, "Сб"), new (6, "Вс")
+                for (int j = 0; j < 24; j++)
+                {
+                    points.Add(new WeightedPoint(j, i, intensities[i, j]));
+                }
+            }
+
+            HeatmapSeries = new ISeries[]
+            {
+                new HeatSeries<WeightedPoint>
+                {
+                    Values = points,
+                    ColorStops = new double[] { 0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0 },
+                    HeatMap = new LvcColor[]
+                    {
+                        SKColors.AliceBlue.AsLvcColor(), SKColors.LightSkyBlue.AsLvcColor(), SKColors.CornflowerBlue.AsLvcColor(),
+                        SKColors.RoyalBlue.AsLvcColor(), SKColors.MediumBlue.AsLvcColor(), SKColors.DarkBlue.AsLvcColor(), SKColors.Navy.AsLvcColor()
+                    }
+                }
             };
-            plot.Axes.Left.TickGenerator = new ScottPlot.TickGenerators.NumericManual(yTicks);
-            plot.Title("Тепловая карта нагрузки по времени");
-            _heatmapPlot.Refresh();
+
+            HeatmapXAxes = new[] { new Axis { Name = "Час дня" } };
+            HeatmapYAxes = new[] { new Axis { Name = "День недели", Labels = new[] { "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс" } } };
         }
 
         private void GenerateOperatorsPlot()
         {
-            if (_operatorsPlot == null) return;
-            var plot = _operatorsPlot.Plot;
-            plot.Clear();
-
             var byOperator = _crossingsData
                 .GroupBy(c => c.OperatorUsername ?? "N/A")
-                .Select(g => new { Operator = g.Key, Count = g.Count() })
-                .OrderBy(x => x.Count)
+                .Select(g => new {
+                    Operator = g.Key,
+                    Total = g.Count(),
+                    Entered = g.Count(x => x.Direction == "ВЪЕЗД"),
+                    Exited = g.Count(x => x.Direction == "ВЫЕЗД")
+                })
+                .OrderBy(x => x.Operator)
                 .ToList();
 
-            var values = byOperator.Select(x => (double)x.Count).ToArray();
+            OperatorsSeries = new ISeries[]
+            {
+                new RowSeries<int> { Name = "Всего", Values = byOperator.Select(op => op.Total).ToList() },
+                new RowSeries<int> { Name = "Въехало", Values = byOperator.Select(op => op.Entered).ToList() },
+                new RowSeries<int> { Name = "Выехало", Values = byOperator.Select(op => op.Exited).ToList() }
+            };
 
-            var bars = plot.Add.Bars(values);
-            // --- ИСПРАВЛЕНО: Orientation заменено на Horizontal ---
-            bars.Horizontal = true;
-
-            var ticks = byOperator.Select((item, index) => new Tick(index, item.Operator)).ToArray();
-            plot.Axes.Left.TickGenerator = new ScottPlot.TickGenerators.NumericManual(ticks);
-            plot.Axes.Left.MajorTickStyle.Length = 0;
-            plot.Title("Рейтинг операторов");
-            _operatorsPlot.Refresh();
+            OperatorsYAxes = new Axis[]
+            {
+                new Axis { Labels = byOperator.Select(op => op.Operator).ToList() }
+            };
         }
     }
 }
