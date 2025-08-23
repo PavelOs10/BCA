@@ -8,13 +8,11 @@ using CommunityToolkit.Mvvm.Input;
 using CheckpointApp.DataAccess;
 using CheckpointApp.Models;
 using System.Globalization;
-using LiveChartsCore;
-using LiveChartsCore.SkiaSharpView;
-using LiveChartsCore.SkiaSharpView.Painting;
-using SkiaSharp;
-using LiveChartsCore.Defaults;
-using LiveChartsCore.Measure;
-using LiveChartsCore.Drawing;
+// --- ЗАМЕНА: Добавлены using для OxyPlot ---
+using OxyPlot;
+using OxyPlot.Series;
+using OxyPlot.Axes;
+using OxyPlot.Legends;
 
 namespace CheckpointApp.ViewModels
 {
@@ -36,14 +34,11 @@ namespace CheckpointApp.ViewModels
         [ObservableProperty]
         private string _selectedGroupingOption;
 
-        [ObservableProperty] private ISeries[] _dynamicsSeries = Array.Empty<ISeries>();
-        [ObservableProperty] private Axis[] _dynamicsXAxes = Array.Empty<Axis>();
-        [ObservableProperty] private ISeries[] _geographySeries = Array.Empty<ISeries>();
-        [ObservableProperty] private ISeries[] _heatmapSeries = Array.Empty<ISeries>();
-        [ObservableProperty] private Axis[] _heatmapXAxes = Array.Empty<Axis>();
-        [ObservableProperty] private Axis[] _heatmapYAxes = Array.Empty<Axis>();
-        [ObservableProperty] private ISeries[] _operatorsSeries = Array.Empty<ISeries>();
-        [ObservableProperty] private Axis[] _operatorsYAxes = Array.Empty<Axis>();
+        // --- ЗАМЕНА: Свойства LiveCharts заменены на PlotModel из OxyPlot ---
+        [ObservableProperty] private PlotModel _dynamicsModel;
+        [ObservableProperty] private PlotModel _geographyModel;
+        [ObservableProperty] private PlotModel _heatmapModel;
+        [ObservableProperty] private PlotModel _operatorsModel;
 
 
         public AnalyticsViewModel(DatabaseService databaseService)
@@ -53,6 +48,12 @@ namespace CheckpointApp.ViewModels
             StartDate = EndDate.AddMonths(-1);
             _selectedGroupingOption = GroupingOptions[0];
             _crossingsData = new List<Crossing>();
+
+            // Инициализация моделей для графиков
+            _dynamicsModel = new PlotModel { Title = "Динамика пересечений" };
+            _geographyModel = new PlotModel { Title = "Распределение по гражданству" };
+            _heatmapModel = new PlotModel { Title = "Нагрузка по времени (День недели / Час)" };
+            _operatorsModel = new PlotModel { Title = "Активность операторов" };
         }
 
         [RelayCommand]
@@ -78,10 +79,15 @@ namespace CheckpointApp.ViewModels
 
         private void ClearAllPlots()
         {
-            DynamicsSeries = Array.Empty<ISeries>();
-            GeographySeries = Array.Empty<ISeries>();
-            HeatmapSeries = Array.Empty<ISeries>();
-            OperatorsSeries = Array.Empty<ISeries>();
+            DynamicsModel = new PlotModel { Title = "Динамика пересечений" };
+            GeographyModel = new PlotModel { Title = "Распределение по гражданству" };
+            HeatmapModel = new PlotModel { Title = "Нагрузка по времени (День недели / Час)" };
+            OperatorsModel = new PlotModel { Title = "Активность операторов" };
+            // Принудительное обновление UI
+            OnPropertyChanged(nameof(DynamicsModel));
+            OnPropertyChanged(nameof(GeographyModel));
+            OnPropertyChanged(nameof(HeatmapModel));
+            OnPropertyChanged(nameof(OperatorsModel));
         }
 
         private void GenerateSummary()
@@ -110,6 +116,16 @@ namespace CheckpointApp.ViewModels
 
         private void GenerateDynamicsPlot()
         {
+            var model = new PlotModel { Title = "Динамика пересечений" };
+
+            // --- ИСПРАВЛЕНИЕ: Легенда настраивается через отдельный объект Legend ---
+            model.Legends.Add(new Legend
+            {
+                LegendTitle = "Обозначения",
+                LegendPosition = LegendPosition.RightTop,
+                LegendPlacement = LegendPlacement.Outside
+            });
+
             var groupedData = _crossingsData.GroupBy(c =>
             {
                 var date = DateTime.Parse(c.Timestamp).Date;
@@ -127,40 +143,56 @@ namespace CheckpointApp.ViewModels
                 Exited = g.Count(x => x.Direction == "ВЫЕЗД")
             }).ToList();
 
-            DynamicsSeries = new ISeries[]
-            {
-                new ColumnSeries<int> { Name = "Всего пересекло", Values = groupedData.Select(d => d.Total).ToList() },
-                new ColumnSeries<int> { Name = "Въехало", Values = groupedData.Select(d => d.Entered).ToList() },
-                new ColumnSeries<int> { Name = "Выехало", Values = groupedData.Select(d => d.Exited).ToList() }
-            };
+            var seriesTotal = new BarSeries { Title = "Всего пересекло", StrokeThickness = 1 };
+            var seriesEntered = new BarSeries { Title = "Въехало", StrokeThickness = 1 };
+            var seriesExited = new BarSeries { Title = "Выехало", StrokeThickness = 1 };
 
-            DynamicsXAxes = new Axis[]
+            foreach (var data in groupedData)
             {
-                new Axis { Labels = groupedData.Select(d => d.Period).ToList(), LabelsRotation = 45 }
-            };
+                seriesTotal.Items.Add(new BarItem(data.Total));
+                seriesEntered.Items.Add(new BarItem(data.Entered));
+                seriesExited.Items.Add(new BarItem(data.Exited));
+            }
+
+            model.Series.Add(seriesTotal);
+            model.Series.Add(seriesEntered);
+            model.Series.Add(seriesExited);
+
+            model.Axes.Add(new CategoryAxis { Position = AxisPosition.Left, ItemsSource = groupedData.Select(d => d.Period).ToList() });
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, MinimumPadding = 0 });
+
+            DynamicsModel = model;
         }
 
         private void GenerateGeographyPlots()
         {
-            var totalCrossings = _crossingsData.Count;
+            var model = new PlotModel { Title = "Распределение по гражданству" };
             var byCitizenship = _crossingsData
                 .GroupBy(c => c.Citizenship ?? "НЕ УКАЗАНО")
                 .Select(g => new { Citizenship = g.Key, Count = g.Count() })
                 .OrderByDescending(x => x.Count)
                 .ToList();
 
-            GeographySeries = byCitizenship.Select(item => new PieSeries<int>
+            var pieSeries = new PieSeries
             {
-                Name = item.Citizenship,
-                Values = new[] { item.Count },
-                DataLabelsPaint = new SolidColorPaint(SKColors.White),
-                DataLabelsPosition = PolarLabelsPosition.Outer,
-                DataLabelsFormatter = p => $"{p.Model} ({(double)p.Model / totalCrossings:P1})"
-            }).ToArray();
+                StrokeThickness = 2.0,
+                InsideLabelPosition = 0.8,
+                AngleSpan = 360,
+                StartAngle = 0
+            };
+
+            foreach (var item in byCitizenship)
+            {
+                pieSeries.Slices.Add(new PieSlice(item.Citizenship, item.Count) { IsExploded = false });
+            }
+
+            model.Series.Add(pieSeries);
+            GeographyModel = model;
         }
 
         private void GenerateHeatmapPlot()
         {
+            var model = new PlotModel { Title = "Нагрузка по времени (День недели / Час)" };
             double[,] intensities = new double[7, 24];
             foreach (var crossing in _crossingsData)
             {
@@ -170,57 +202,47 @@ namespace CheckpointApp.ViewModels
                 intensities[dayOfWeek, hour]++;
             }
 
-            var points = new List<WeightedPoint>();
-            for (int i = 0; i < 7; i++)
+            var heatMapSeries = new HeatMapSeries
             {
-                for (int j = 0; j < 24; j++)
-                {
-                    points.Add(new WeightedPoint(j, i, intensities[i, j]));
-                }
-            }
-
-            HeatmapSeries = new ISeries[]
-            {
-                new HeatSeries<WeightedPoint>
-                {
-                    Values = points,
-                    ColorStops = new double[] { 0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0 },
-                    HeatMap = new LvcColor[]
-                    {
-                        SKColors.AliceBlue.AsLvcColor(), SKColors.LightSkyBlue.AsLvcColor(), SKColors.CornflowerBlue.AsLvcColor(),
-                        SKColors.RoyalBlue.AsLvcColor(), SKColors.MediumBlue.AsLvcColor(), SKColors.DarkBlue.AsLvcColor(), SKColors.Navy.AsLvcColor()
-                    }
-                }
+                X0 = 0,
+                X1 = 23,
+                Y0 = 0,
+                Y1 = 6,
+                Data = intensities,
+                Interpolate = false
             };
 
-            HeatmapXAxes = new[] { new Axis { Name = "Час дня" } };
-            HeatmapYAxes = new[] { new Axis { Name = "День недели", Labels = new[] { "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс" } } };
+            model.Series.Add(heatMapSeries);
+            model.Axes.Add(new LinearColorAxis { Position = AxisPosition.Right, Palette = OxyPalettes.Jet(200) });
+            model.Axes.Add(new CategoryAxis { Position = AxisPosition.Bottom, Title = "Час дня", ItemsSource = Enumerable.Range(0, 24).Select(h => h.ToString("D2")).ToList() });
+            model.Axes.Add(new CategoryAxis { Position = AxisPosition.Left, Title = "День недели", ItemsSource = new[] { "Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс" } });
+
+            HeatmapModel = model;
         }
 
         private void GenerateOperatorsPlot()
         {
+            var model = new PlotModel { Title = "Активность операторов" };
             var byOperator = _crossingsData
                 .GroupBy(c => c.OperatorUsername ?? "N/A")
                 .Select(g => new {
                     Operator = g.Key,
-                    Total = g.Count(),
-                    Entered = g.Count(x => x.Direction == "ВЪЕЗД"),
-                    Exited = g.Count(x => x.Direction == "ВЫЕЗД")
+                    Total = g.Count()
                 })
                 .OrderBy(x => x.Operator)
                 .ToList();
 
-            OperatorsSeries = new ISeries[]
+            var barSeries = new BarSeries { Title = "Обработано пересечений", StrokeThickness = 1 };
+            foreach (var op in byOperator)
             {
-                new RowSeries<int> { Name = "Всего", Values = byOperator.Select(op => op.Total).ToList() },
-                new RowSeries<int> { Name = "Въехало", Values = byOperator.Select(op => op.Entered).ToList() },
-                new RowSeries<int> { Name = "Выехало", Values = byOperator.Select(op => op.Exited).ToList() }
-            };
+                barSeries.Items.Add(new BarItem(op.Total));
+            }
 
-            OperatorsYAxes = new Axis[]
-            {
-                new Axis { Labels = byOperator.Select(op => op.Operator).ToList() }
-            };
+            model.Series.Add(barSeries);
+            model.Axes.Add(new CategoryAxis { Position = AxisPosition.Left, ItemsSource = byOperator.Select(op => op.Operator).ToList() });
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, MinimumPadding = 0 });
+
+            OperatorsModel = model;
         }
     }
 }

@@ -12,7 +12,8 @@ namespace CheckpointApp.Services
     public class SecurityCheckResult
     {
         public bool IsAllowed { get; set; }
-        public string Message { get; set; }
+        // --- ИСПРАВЛЕНИЕ: Инициализация свойства для избежания ошибки non-nullable ---
+        public string Message { get; set; } = string.Empty;
         public bool IsWarning { get; set; } // True for watchlist, false for wanted list
     }
 

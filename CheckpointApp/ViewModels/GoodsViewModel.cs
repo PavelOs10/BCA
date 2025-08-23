@@ -1,34 +1,34 @@
 ﻿using System.Collections.ObjectModel;
-using System.Collections.Generic;
+using System.Windows;
+using CheckpointApp.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using CheckpointApp.Models;
 
 namespace CheckpointApp.ViewModels
 {
     public partial class GoodsViewModel : ObservableObject
     {
-        // Работаем напрямую с коллекцией из MainViewModel
+        // Ссылка на временный список товаров из MainViewModel
         public ObservableCollection<TempGood> GoodsList { get; }
 
-        // Свойства для полей ввода
+        public ObservableCollection<string> CommonUnits { get; }
+
         [ObservableProperty]
-        private string _newGoodDescription;
+        private string _newGoodDescription = string.Empty;
+
         [ObservableProperty]
         private double _newGoodQuantity = 1.0;
+
         [ObservableProperty]
         private string _newGoodUnit = "ШТ";
 
-        // Свойство для удаления
         [ObservableProperty]
-        private TempGood _selectedGood;
+        private TempGood? _selectedGood;
 
-        // Предзаполненный список единиц измерения
-        public List<string> CommonUnits { get; } = new List<string> { "ШТ", "КГ", "Л", "М3", "УПАК" };
-
-        public GoodsViewModel(ObservableCollection<TempGood> goods)
+        public GoodsViewModel(ObservableCollection<TempGood> temporaryGoodsList)
         {
-            GoodsList = goods;
+            GoodsList = temporaryGoodsList;
+            CommonUnits = new ObservableCollection<string> { "ШТ", "КГ", "Л", "М3", "УПАК" };
         }
 
         [RelayCommand]
@@ -36,19 +36,20 @@ namespace CheckpointApp.ViewModels
         {
             if (string.IsNullOrWhiteSpace(NewGoodDescription) || NewGoodQuantity <= 0)
             {
+                MessageBox.Show("Наименование не может быть пустым, а количество должно быть больше нуля.", "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
             var newGood = new TempGood
             {
-                Description = NewGoodDescription.ToUpper(),
+                Description = NewGoodDescription,
                 Quantity = NewGoodQuantity,
-                Unit = NewGoodUnit?.ToUpper() ?? "ШТ"
+                Unit = NewGoodUnit
             };
 
             GoodsList.Add(newGood);
 
-            // Очищаем поля для следующего ввода
+            // Очистка полей для нового ввода
             NewGoodDescription = string.Empty;
             NewGoodQuantity = 1.0;
         }
@@ -59,6 +60,10 @@ namespace CheckpointApp.ViewModels
             if (SelectedGood != null)
             {
                 GoodsList.Remove(SelectedGood);
+            }
+            else
+            {
+                MessageBox.Show("Выберите товар для удаления.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
     }

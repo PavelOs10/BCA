@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.Wpf;assembly=LiveChartsCore.SkiaSharpView.Wpf"
+        xmlns:oxy="http://oxyplot.org/wpf"
         mc:Ignorable="d"
         Title="Аналитика пограничных пересечений" Height="800" Width="1200"
         WindowStartupLocation="CenterOwner">
@@ -31,16 +31,20 @@
                 <TextBlock Text="{Binding SummaryText}" Margin="15" FontSize="16" TextWrapping="Wrap"/>
             </TabItem>
             <TabItem Header="Динамика">
-                <lvc:CartesianChart Series="{Binding DynamicsSeries}" XAxes="{Binding DynamicsXAxes}" LegendPosition="Right"/>
+                <!-- ЗАМЕНА: LiveCharts заменен на OxyPlot -->
+                <oxy:PlotView Model="{Binding DynamicsModel}" />
             </TabItem>
             <TabItem Header="География">
-                <lvc:PieChart Series="{Binding GeographySeries}" LegendPosition="Bottom"/>
+                <!-- ЗАМЕНА: LiveCharts заменен на OxyPlot -->
+                <oxy:PlotView Model="{Binding GeographyModel}" />
             </TabItem>
             <TabItem Header="Нагрузка по времени">
-                <lvc:CartesianChart Series="{Binding HeatmapSeries}" XAxes="{Binding HeatmapXAxes}" YAxes="{Binding HeatmapYAxes}" TooltipPosition="Left"/>
+                <!-- ЗАМЕНА: LiveCharts заменен на OxyPlot -->
+                <oxy:PlotView Model="{Binding HeatmapModel}" />
             </TabItem>
             <TabItem Header="Рейтинг операторов">
-                <lvc:CartesianChart Series="{Binding OperatorsSeries}" YAxes="{Binding OperatorsYAxes}" LegendPosition="Right"/>
+                <!-- ЗАМЕНА: LiveCharts заменен на OxyPlot -->
+                <oxy:PlotView Model="{Binding OperatorsModel}" />
             </TabItem>
         </TabControl>
     </DockPanel>
