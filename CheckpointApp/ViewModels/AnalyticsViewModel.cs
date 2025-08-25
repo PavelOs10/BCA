@@ -8,11 +8,14 @@ using CommunityToolkit.Mvvm.Input;
 using CheckpointApp.DataAccess;
 using CheckpointApp.Models;
 using System.Globalization;
-// --- ЗАМЕНА: Добавлены using для OxyPlot ---
 using OxyPlot;
 using OxyPlot.Series;
 using OxyPlot.Axes;
 using OxyPlot.Legends;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Windows.Data;
+using System.Windows;
 
 namespace CheckpointApp.ViewModels
 {
@@ -20,25 +23,34 @@ namespace CheckpointApp.ViewModels
     {
         private readonly DatabaseService _databaseService;
         private List<Crossing> _crossingsData;
+        private List<GoodReportItem> _goodsData;
 
-        [ObservableProperty]
-        private DateTime _startDate;
-        [ObservableProperty]
-        private DateTime _endDate;
-        [ObservableProperty]
-        private string _statusText = string.Empty;
-        [ObservableProperty]
-        private string _summaryText = "Выберите период и сформируйте отчет.";
+        [ObservableProperty] private DateTime _startDate;
+        [ObservableProperty] private DateTime _endDate;
+        [ObservableProperty] private string _statusText = string.Empty;
+        [ObservableProperty] private string _summaryText = "Выберите период и сформируйте отчет.";
 
         public List<string> GroupingOptions { get; } = new List<string> { "По дням", "По неделям", "По месяцам" };
-        [ObservableProperty]
-        private string _selectedGroupingOption;
+        [ObservableProperty] private string _selectedGroupingOption;
 
-        // --- ЗАМЕНА: Свойства LiveCharts заменены на PlotModel из OxyPlot ---
         [ObservableProperty] private PlotModel _dynamicsModel;
         [ObservableProperty] private PlotModel _geographyModel;
         [ObservableProperty] private PlotModel _heatmapModel;
         [ObservableProperty] private PlotModel _operatorsModel;
+        [ObservableProperty] private PlotModel _goodsModel;
+
+        // --- НОВЫЕ СВОЙСТВА ДЛЯ АНАЛИЗА ПО ЛИЦУ ---
+        [ObservableProperty]
+        private ObservableCollection<Person> _allPersons;
+        public ICollectionView PersonsView { get; }
+        [ObservableProperty]
+        private string _personSearchText = string.Empty;
+        [ObservableProperty]
+        private Person? _selectedPersonForReport;
+        [ObservableProperty]
+        private ObservableCollection<PersonGoodsItem> _personGoodsHistory;
+        [ObservableProperty]
+        private ObservableCollection<GoodReportItem> _personGoodsSummary;
 
 
         public AnalyticsViewModel(DatabaseService databaseService)
@@ -48,25 +60,56 @@ namespace CheckpointApp.ViewModels
             StartDate = EndDate.AddMonths(-1);
             _selectedGroupingOption = GroupingOptions[0];
             _crossingsData = new List<Crossing>();
+            _goodsData = new List<GoodReportItem>();
 
-            // Инициализация моделей для графиков
             _dynamicsModel = new PlotModel { Title = "Динамика пересечений" };
             _geographyModel = new PlotModel { Title = "Распределение по гражданству" };
             _heatmapModel = new PlotModel { Title = "Нагрузка по времени (День недели / Час)" };
             _operatorsModel = new PlotModel { Title = "Активность операторов" };
+            _goodsModel = new PlotModel { Title = "Топ-10 товаров по количеству" };
+
+            // --- ИНИЦИАЛИЗАЦИЯ НОВЫХ СВОЙСТВ ---
+            _allPersons = new ObservableCollection<Person>();
+            PersonsView = CollectionViewSource.GetDefaultView(_allPersons);
+            PersonsView.Filter = FilterPersons;
+            _personGoodsHistory = new ObservableCollection<PersonGoodsItem>();
+            _personGoodsSummary = new ObservableCollection<GoodReportItem>();
+
+            // Загружаем список людей один раз при создании
+            _ = LoadAllPersonsAsync();
+        }
+
+        private async Task LoadAllPersonsAsync()
+        {
+            var personList = await _databaseService.GetAllPersonsAsync();
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                AllPersons.Clear();
+                foreach (var p in personList)
+                {
+                    AllPersons.Add(p);
+                }
+            });
         }
 
         [RelayCommand]
         private async Task GenerateReport()
         {
             StatusText = "Загрузка данных...";
-            _crossingsData = (await _databaseService.GetCrossingsByDateRangeAsync(StartDate, EndDate.AddDays(1))).ToList();
-            StatusText = $"Данные загружены. Обработано {_crossingsData.Count} записей.";
+            var crossingsTask = _databaseService.GetCrossingsByDateRangeAsync(StartDate, EndDate.AddDays(1));
+            var goodsTask = _databaseService.GetGoodsByDateRangeAsync(StartDate, EndDate.AddDays(1));
+
+            await Task.WhenAll(crossingsTask, goodsTask);
+
+            _crossingsData = (await crossingsTask).ToList();
+            _goodsData = (await goodsTask).ToList();
+
+            StatusText = $"Данные загружены. Обработано {_crossingsData.Count} пересечений и {_goodsData.Count} видов товаров.";
 
             if (!_crossingsData.Any())
             {
                 ClearAllPlots();
-                SummaryText = "За выбранный период нет данных.";
+                SummaryText = "За выбранный период нет данных о пересечениях.";
                 return;
             }
 
@@ -75,6 +118,7 @@ namespace CheckpointApp.ViewModels
             GenerateGeographyPlots();
             GenerateHeatmapPlot();
             GenerateOperatorsPlot();
+            GenerateGoodsPlot();
         }
 
         private void ClearAllPlots()
@@ -83,11 +127,12 @@ namespace CheckpointApp.ViewModels
             GeographyModel = new PlotModel { Title = "Распределение по гражданству" };
             HeatmapModel = new PlotModel { Title = "Нагрузка по времени (День недели / Час)" };
             OperatorsModel = new PlotModel { Title = "Активность операторов" };
-            // Принудительное обновление UI
+            GoodsModel = new PlotModel { Title = "Топ-10 товаров по количеству" };
             OnPropertyChanged(nameof(DynamicsModel));
             OnPropertyChanged(nameof(GeographyModel));
             OnPropertyChanged(nameof(HeatmapModel));
             OnPropertyChanged(nameof(OperatorsModel));
+            OnPropertyChanged(nameof(GoodsModel));
         }
 
         private void GenerateSummary()
@@ -117,8 +162,6 @@ namespace CheckpointApp.ViewModels
         private void GenerateDynamicsPlot()
         {
             var model = new PlotModel { Title = "Динамика пересечений" };
-
-            // --- ИСПРАВЛЕНИЕ: Легенда настраивается через отдельный объект Legend ---
             model.Legends.Add(new Legend
             {
                 LegendTitle = "Обозначения",
@@ -244,5 +287,103 @@ namespace CheckpointApp.ViewModels
 
             OperatorsModel = model;
         }
+
+        private void GenerateGoodsPlot()
+        {
+            var model = new PlotModel { Title = "Топ-10 товаров по количеству" };
+            if (!_goodsData.Any())
+            {
+                model.Subtitle = "Нет данных о товарах за выбранный период.";
+                GoodsModel = model;
+                return;
+            }
+
+            var topGoods = _goodsData.Take(10).ToList();
+
+            var barSeries = new BarSeries
+            {
+                Title = "Общее количество",
+                StrokeThickness = 1,
+                LabelFormatString = "{0:0.##}"
+            };
+
+            foreach (var good in topGoods)
+            {
+                barSeries.Items.Add(new BarItem(good.TotalQuantity));
+            }
+
+            model.Series.Add(barSeries);
+            var categoryAxis = new CategoryAxis
+            {
+                Position = AxisPosition.Left,
+                ItemsSource = topGoods.Select(g => $"{g.Description} ({g.Unit})").ToList(),
+                Angle = topGoods.Any(g => g.Description.Length > 20) ? -30 : 0
+            };
+            model.Axes.Add(categoryAxis);
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, MinimumPadding = 0, Title = "Количество" });
+
+            GoodsModel = model;
+        }
+
+        #region Person Goods Analysis Logic
+
+        private bool FilterPersons(object obj)
+        {
+            if (string.IsNullOrWhiteSpace(PersonSearchText))
+                return true;
+
+            if (obj is Person person)
+            {
+                return person.FullName.Contains(PersonSearchText, StringComparison.OrdinalIgnoreCase) ||
+                       person.PassportData.Contains(PersonSearchText, StringComparison.OrdinalIgnoreCase);
+            }
+            return false;
+        }
+
+        partial void OnPersonSearchTextChanged(string value)
+        {
+            PersonsView.Refresh();
+        }
+
+        [RelayCommand]
+        private async Task GeneratePersonGoodsReport()
+        {
+            if (SelectedPersonForReport == null)
+            {
+                MessageBox.Show("Пожалуйста, выберите человека из списка.", "Внимание", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            StatusText = $"Загрузка данных для {SelectedPersonForReport.LastName}...";
+            var history = await _databaseService.GetGoodsByPersonIdAndDateRangeAsync(SelectedPersonForReport.Id, StartDate, EndDate.AddDays(1));
+            var historyList = history.ToList();
+
+            PersonGoodsHistory.Clear();
+            foreach (var item in historyList)
+            {
+                PersonGoodsHistory.Add(item);
+            }
+
+            var summary = historyList
+                .GroupBy(h => new { h.Description, h.Unit })
+                .Select(g => new GoodReportItem
+                {
+                    Description = g.Key.Description,
+                    Unit = g.Key.Unit,
+                    TotalQuantity = g.Sum(item => item.Quantity)
+                })
+                .OrderByDescending(s => s.TotalQuantity)
+                .ToList();
+
+            PersonGoodsSummary.Clear();
+            foreach (var item in summary)
+            {
+                PersonGoodsSummary.Add(item);
+            }
+
+            StatusText = $"Отчет для {SelectedPersonForReport.LastName} сформирован. Найдено {historyList.Count} записей.";
+        }
+
+        #endregion
     }
 }

@@ -3,186 +3,194 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:viewModels="clr-namespace:CheckpointApp.ViewModels"
-        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
+        xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
+        xmlns:viewmodels="clr-namespace:CheckpointApp.ViewModels"
+        xmlns:helpers="clr-namespace:CheckpointApp.Helpers"
+        d:DataContext="{d:DesignInstance Type=viewmodels:MainViewModel}"
         mc:Ignorable="d"
-        d:DataContext="{d:DesignInstance Type=viewModels:MainViewModel}"
-        Title="{Binding WindowTitle}" Height="800" Width="1200" WindowStartupLocation="CenterScreen">
+        Title="{Binding WindowTitle}" Height="800" Width="1280"
+        WindowStartupLocation="CenterScreen">
+
     <Window.Resources>
-        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <helpers:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+
+        <Style TargetType="ListViewItem" x:Key="CrossingListViewItemStyle">
+            <Setter Property="Foreground" Value="Black" />
+            <Style.Triggers>
+                <DataTrigger Binding="{Binding IsOnWatchlist}" Value="True">
+                    <Setter Property="Background" Value="#7D5C00"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsOnWantedList}" Value="True">
+                    <Setter Property="Background" Value="#6B0000"/>
+                    <Setter Property="Foreground" Value="White"/>
+                </DataTrigger>
+                <DataTrigger Binding="{Binding IsDeleted}" Value="True">
+                    <Setter Property="TextBlock.TextDecorations" Value="Strikethrough"/>
+                    <Setter Property="Foreground" Value="Gray"/>
+                    <Setter Property="ToolTip" Value="Эта запись помечена как ошибочная и не учитывается в статистике."/>
+                </DataTrigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
+
     <DockPanel>
-        <!-- СТРОКА МЕНЮ -->
         <Menu DockPanel.Dock="Top">
             <MenuItem Header="_Файл">
-                <MenuItem Header="_Экспорт в Excel" Command="{Binding ExportToExcelCommand}"/>
+                <MenuItem Header="_Сохранить пересечение" Command="{Binding SaveCrossingCommand}"/>
+                <MenuItem Header="_Очистить форму" Command="{Binding ClearFormCommand}"/>
                 <Separator/>
+                <MenuItem Header="_Запрос на лицо..." Command="{Binding GeneratePersonReportCommand}"/>
+                <MenuItem Header="_Экспорт в Excel..." Command="{Binding ExportToExcelCommand}"/>
+                <Separator/>
+                <!-- НОВЫЙ ПУНКТ МЕНЮ: Смена оператора -->
+                <MenuItem Header="_Сменить оператора" Command="{Binding SwitchUserCommand}"/>
                 <MenuItem Header="_Выход" Command="{Binding ExitCommand}"/>
             </MenuItem>
             <MenuItem Header="_Инструменты">
-                <MenuItem Header="Лица в погранзоне" Command="{Binding ShowPeopleInZoneCommand}"/>
-                <MenuItem Header="Аналитика" Command="{Binding ShowAnalyticsCommand}" Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                <MenuItem Header="Список розыска" Command="{Binding ManageWantedListCommand}"/>
-                <MenuItem Header="Список наблюдения" Command="{Binding ManageWatchlistCommand}"/>
+                <MenuItem Header="_Обновить данные" Command="{Binding RefreshDataCommand}"/>
+                <MenuItem Header="_Лица в погранзоне" Command="{Binding ShowPeopleInZoneCommand}"/>
+                <MenuItem Header="_Аналитика" Command="{Binding ShowAnalyticsCommand}"/>
+                <Separator/>
+                <MenuItem Header="_Список розыска" Command="{Binding ManageWantedListCommand}"/>
+                <MenuItem Header="_Список наблюдения" Command="{Binding ManageWatchlistCommand}"/>
             </MenuItem>
             <MenuItem Header="_Администрирование" Visibility="{Binding IsAdmin, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <MenuItem Header="Управление пользователями" Command="{Binding ManageUsersCommand}"/>
+                <MenuItem Header="_Управление пользователями" Command="{Binding ManageUsersCommand}"/>
             </MenuItem>
             <MenuItem Header="_Справка">
                 <MenuItem Header="_О программе" Command="{Binding ShowAboutInfoCommand}"/>
             </MenuItem>
         </Menu>
 
-        <!-- ПАНЕЛЬ ИНСТРУМЕНТОВ -->
         <ToolBarTray DockPanel.Dock="Top">
             <ToolBar>
-                <Button Content="Сохранить" Command="{Binding SaveCrossingCommand}" Padding="5"/>
-                <Button Content="Очистить" Command="{Binding ClearFormCommand}" Padding="5"/>
-                <Button Content="Обновить" Command="{Binding RefreshDataCommand}" Padding="5"/>
+                <Button Content="Сохранить" Command="{Binding SaveCrossingCommand}"/>
+                <Button Content="Очистить" Command="{Binding ClearFormCommand}"/>
+                <Button Content="Обновить" Command="{Binding RefreshDataCommand}"/>
+                <Button Content="Удалить" Command="{Binding DeleteCrossingCommand}" Background="#FFC1C1"/>
                 <Separator/>
-                <Button Content="Товары/Грузы" Command="{Binding ShowGoodsWindowCommand}" Padding="5"/>
+                <Button Content="Товары/Грузы" Command="{Binding ShowGoodsWindowCommand}"/>
             </ToolBar>
         </ToolBarTray>
 
-        <!-- СТРОКА СОСТОЯНИЯ -->
         <StatusBar DockPanel.Dock="Bottom">
             <StatusBarItem>
                 <TextBlock Text="{Binding StatusMessage}"/>
             </StatusBarItem>
         </StatusBar>
 
-        <!-- ОСНОВНОЕ СОДЕРЖИМОЕ -->
-        <Grid Margin="5">
+        <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- ПАНЕЛЬ МОНИТОРИНГА (DASHBOARD) -->
-            <Border Grid.Row="0" BorderBrush="Gray" BorderThickness="1" Padding="5" Margin="0,0,0,5">
+            <!-- ПАНЕЛЬ МОНИТОРИНГА -->
+            <Border Grid.Row="0" Margin="5" Padding="5" BorderBrush="LightGray" BorderThickness="1">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
-                    </Grid.RowDefinitions>
 
-                    <!-- Фильтры -->
-                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="5">
-                        <TextBlock Text="Период:" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                        <xctk:DateTimePicker Value="{Binding DashboardStartDate}" Format="Custom" FormatString="dd.MM.yyyy HH:mm" Width="140"/>
-                        <TextBlock Text="-" VerticalAlignment="Center" Margin="5,0"/>
-                        <xctk:DateTimePicker Value="{Binding DashboardEndDate}" Format="Custom" FormatString="dd.MM.yyyy HH:mm" Width="140"/>
-                        <Button Content="Применить" Command="{Binding UpdateDashboardStatsCommand}" Margin="10,0,0,0"/>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                        <TextBlock Text="Статистика за период:" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <DatePicker SelectedDate="{Binding DashboardStartDate}" Margin="5,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="-" VerticalAlignment="Center"/>
+                        <DatePicker SelectedDate="{Binding DashboardEndDate}" Margin="5,0" VerticalAlignment="Center"/>
+                        <Button Content="Применить" Command="{Binding UpdateAllDashboardStatsCommand}" Margin="5,0" Padding="5,0"/>
+                        <Separator Margin="10,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
+                        <TextBlock Text="Въехало:" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding EnteredPersonsCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="чел. /" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding EnteredVehiclesCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="тс" VerticalAlignment="Center"/>
+                        <Separator Margin="10,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
+                        <TextBlock Text="Выехало:" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding ExitedPersonsCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="чел. /" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding ExitedVehiclesCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="тс" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <!-- Статистика по периоду -->
-                    <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Margin="5">
-                        <TextBlock Text="Въехало:" FontWeight="Bold" Margin="0,0,10,0"/>
-                        <TextBlock Text="Лиц - "/>
-                        <TextBlock Text="{Binding EnteredPersonsCount}" FontWeight="SemiBold"/>
-                        <TextBlock Text=", ТС - " Margin="10,0,0,0"/>
-                        <TextBlock Text="{Binding EnteredVehiclesCount}" FontWeight="SemiBold"/>
-
-                        <TextBlock Text="Выехало:" FontWeight="Bold" Margin="20,0,10,0"/>
-                        <TextBlock Text="Лиц - "/>
-                        <TextBlock Text="{Binding ExitedPersonsCount}" FontWeight="SemiBold"/>
-                        <TextBlock Text=", ТС - " Margin="10,0,0,0"/>
-                        <TextBlock Text="{Binding ExitedVehiclesCount}" FontWeight="SemiBold"/>
-                    </StackPanel>
-
-                    <!-- Общая статистика -->
-                    <StackPanel Grid.Row="0" Grid.RowSpan="2" Grid.Column="1" Orientation="Vertical" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="10">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="В ориентировках лиц: "/>
-                            <TextBlock Text="{Binding WantedPersonsTotalCount}" FontWeight="Bold" Foreground="DarkRed"/>
-                        </StackPanel>
-                        <StackPanel Orientation="Horizontal" Margin="0,5,0,0">
-                            <TextBlock Text="В списке наблюдения лиц: "/>
-                            <TextBlock Text="{Binding WatchlistPersonsTotalCount}" FontWeight="Bold" Foreground="DarkGoldenrod"/>
-                        </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Separator Margin="10,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
+                        <TextBlock Text="В погранзоне:" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding PersonsInZoneCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center" Foreground="Blue"/>
+                        <TextBlock Text="чел. /" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding VehiclesInZoneCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center" Foreground="Blue"/>
+                        <TextBlock Text="тс" VerticalAlignment="Center"/>
+                        <Separator Margin="10,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
+                        <TextBlock Text="В розыске:" VerticalAlignment="Center" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding WantedPersonsTotalCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center" Foreground="Red"/>
+                        <TextBlock Text="чел." VerticalAlignment="Center"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <!-- РАЗДЕЛЕННАЯ ПАНЕЛЬ -->
             <Grid Grid.Row="1">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="5"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- ВЕРХНЯЯ ПАНЕЛЬ: ФОРМА ВВОДА -->
-                <TabControl Grid.Row="0">
+                <!-- ФОРМА ВВОДА -->
+                <TabControl Grid.Row="0" Margin="5">
                     <TabItem Header="Личные данные">
-                        <Grid Margin="5">
+                        <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto"/>
                                 <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
                             </Grid.ColumnDefinitions>
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                                <RowDefinition Height="Auto"/>
-                            </Grid.RowDefinitions>
-
-                            <Label Grid.Row="0" Grid.Column="0" Content="Фамилия:"/>
-                            <TextBox Grid.Row="0" Grid.Column="1" Margin="2" Text="{Binding CurrentPerson.LastName, UpdateSourceTrigger=PropertyChanged}"/>
-                            <Label Grid.Row="0" Grid.Column="2" Content="Имя:"/>
-                            <TextBox Grid.Row="0" Grid.Column="3" Margin="2" Text="{Binding CurrentPerson.FirstName, UpdateSourceTrigger=PropertyChanged}"/>
-
-                            <Label Grid.Row="1" Grid.Column="0" Content="Отчество:"/>
-                            <TextBox Grid.Row="1" Grid.Column="1" Margin="2" Text="{Binding CurrentPerson.Patronymic, UpdateSourceTrigger=PropertyChanged}"/>
-                            <Label Grid.Row="1" Grid.Column="2" Content="Дата рождения:"/>
-                            <DatePicker Grid.Row="1" Grid.Column="3" Margin="2" SelectedDate="{Binding CurrentPersonDob, UpdateSourceTrigger=PropertyChanged}"/>
-
-                            <Label Grid.Row="2" Grid.Column="0" Content="Гражданство:"/>
-                            <ComboBox Grid.Row="2" Grid.Column="1" Margin="2" IsEditable="True" 
-                                      Text="{Binding CurrentPerson.Citizenship, UpdateSourceTrigger=PropertyChanged}"
-                                      ItemsSource="{Binding AllCitizenships}"/>
-                            <Label Grid.Row="2" Grid.Column="2" Content="Паспорт:"/>
-                            <TextBox Grid.Row="2" Grid.Column="3" Margin="2" Text="{Binding CurrentPerson.PassportData, UpdateSourceTrigger=PropertyChanged}"/>
-
-                            <Label Grid.Row="3" Grid.Column="0" Content="Примечания:"/>
-                            <TextBox Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" Margin="2" Height="50" TextWrapping="Wrap" AcceptsReturn="True" Text="{Binding CurrentPerson.Notes}"/>
+                            <StackPanel Grid.Column="0" Margin="5">
+                                <Label Content="Фамилия:"/>
+                                <TextBox Text="{Binding CurrentPerson.LastName, UpdateSourceTrigger=PropertyChanged}"/>
+                                <Label Content="Имя:"/>
+                                <TextBox Text="{Binding CurrentPerson.FirstName, UpdateSourceTrigger=PropertyChanged}"/>
+                                <Label Content="Отчество:"/>
+                                <TextBox Text="{Binding CurrentPerson.Patronymic, UpdateSourceTrigger=PropertyChanged}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Margin="5">
+                                <Label Content="Гражданство:"/>
+                                <ComboBox IsEditable="True" ItemsSource="{Binding AllCitizenships}" Text="{Binding CurrentPerson.Citizenship, UpdateSourceTrigger=PropertyChanged}"/>
+                                <Label Content="Паспортные данные:"/>
+                                <TextBox Text="{Binding CurrentPerson.PassportData, UpdateSourceTrigger=PropertyChanged}"/>
+                                <Label Content="Дата рождения:"/>
+                                <DatePicker SelectedDate="{Binding CurrentPersonDob}"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Margin="5">
+                                <Label Content="Примечания:"/>
+                                <TextBox Text="{Binding CurrentPerson.Notes}" Height="100" TextWrapping="Wrap" AcceptsReturn="True"/>
+                            </StackPanel>
                         </Grid>
                     </TabItem>
                     <TabItem Header="Детали пересечения">
-                        <Grid Margin="5">
+                        <Grid>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition/>
+                                <ColumnDefinition/>
                             </Grid.ColumnDefinitions>
-
                             <StackPanel Grid.Column="0" Margin="5">
-                                <TextBlock Text="Направление:" FontWeight="Bold"/>
-                                <StackPanel Orientation="Horizontal" Margin="0,5,0,10">
-                                    <RadioButton Content="Въезд" GroupName="Direction" IsChecked="{Binding IsDirectionIn}"/>
-                                    <RadioButton Content="Выезд" GroupName="Direction" Margin="10,0,0,0" IsChecked="{Binding IsDirectionOut}"/>
-                                </StackPanel>
-
+                                <GroupBox Header="Направление">
+                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                        <RadioButton Content="Въезд" IsChecked="{Binding IsDirectionIn}" Margin="5"/>
+                                        <RadioButton Content="Выезд" IsChecked="{Binding IsDirectionOut}" Margin="5"/>
+                                    </StackPanel>
+                                </GroupBox>
                                 <Label Content="Тип пересечения:"/>
                                 <ComboBox ItemsSource="{Binding CrossingTypes}" SelectedItem="{Binding SelectedCrossingType}"/>
-
                                 <Label Content="Цель:"/>
-                                <ComboBox IsEditable="True" Text="{Binding CurrentCrossing.Purpose, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding AllPurposes}"/>
-
-                                <Label Content="НП Следования (для въезда):"/>
-                                <ComboBox IsEditable="True" Text="{Binding CurrentCrossing.DestinationTown, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding AllDestinations}"/>
+                                <ComboBox IsEditable="True" ItemsSource="{Binding AllPurposes}" Text="{Binding CurrentCrossing.Purpose, UpdateSourceTrigger=PropertyChanged}"/>
+                                <Label Content="НП Следования:"/>
+                                <ComboBox IsEditable="True" ItemsSource="{Binding AllDestinations}" Text="{Binding CurrentCrossing.DestinationTown, UpdateSourceTrigger=PropertyChanged}"/>
                             </StackPanel>
-
-                            <GroupBox Header="Информация о ТС" Grid.Column="1" Margin="5" IsEnabled="{Binding IsVehicleInfoEnabled}">
+                            <GroupBox Grid.Column="1" Header="Транспортное средство" Margin="5" IsEnabled="{Binding IsVehicleInfoEnabled}">
                                 <StackPanel>
                                     <Label Content="Марка:"/>
-                                    <ComboBox IsEditable="True" Text="{Binding CurrentVehicle.Make, UpdateSourceTrigger=PropertyChanged}" ItemsSource="{Binding AllVehicleMakes}"/>
+                                    <ComboBox IsEditable="True" ItemsSource="{Binding AllVehicleMakes}" Text="{Binding CurrentVehicle.Make, UpdateSourceTrigger=PropertyChanged}"/>
                                     <Label Content="Гос. номер:"/>
                                     <TextBox Text="{Binding CurrentVehicle.LicensePlate, UpdateSourceTrigger=PropertyChanged}"/>
                                 </StackPanel>
@@ -191,9 +199,9 @@
                     </TabItem>
                 </TabControl>
 
-                <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="LightGray"/>
-
-                <ListView Grid.Row="2" ItemsSource="{Binding CrossingsView}" SelectedItem="{Binding SelectedCrossing}">
+                <!-- ЖУРНАЛ ПЕРЕСЕЧЕНИЙ -->
+                <ListView Grid.Row="1" Margin="5" ItemsSource="{Binding CrossingsView}" SelectedItem="{Binding SelectedCrossing}"
+                          ItemContainerStyle="{StaticResource CrossingListViewItemStyle}">
                     <i:Interaction.Triggers>
                         <i:EventTrigger EventName="MouseDoubleClick">
                             <i:InvokeCommandAction Command="{Binding SelectCrossingCommand}" />
@@ -201,17 +209,17 @@
                     </i:Interaction.Triggers>
                     <ListView.View>
                         <GridView>
-                            <GridViewColumn Header="ID" DisplayMemberBinding="{Binding ID}"/>
-                            <GridViewColumn Header="Дата и время" DisplayMemberBinding="{Binding Timestamp}"/>
-                            <GridViewColumn Header="ФИО" DisplayMemberBinding="{Binding FullName}" Width="200"/>
-                            <GridViewColumn Header="Дата рожд." DisplayMemberBinding="{Binding PersonDob}"/>
-                            <GridViewColumn Header="Паспорт" DisplayMemberBinding="{Binding PersonPassport}" Width="120"/>
-                            <GridViewColumn Header="Направл." DisplayMemberBinding="{Binding Direction}"/>
-                            <GridViewColumn Header="Тип" DisplayMemberBinding="{Binding CrossingType}"/>
-                            <GridViewColumn Header="ТС (Марка/Номер)" DisplayMemberBinding="{Binding VehicleInfo}" Width="150"/>
-                            <GridViewColumn Header="Цель" DisplayMemberBinding="{Binding Purpose}"/>
-                            <GridViewColumn Header="НП Следования" DisplayMemberBinding="{Binding DestinationTown}"/>
-                            <GridViewColumn Header="Оператор" DisplayMemberBinding="{Binding OperatorUsername}"/>
+                            <GridViewColumn Header="ID" DisplayMemberBinding="{Binding ID}" Width="50"/>
+                            <GridViewColumn Header="Дата и время" DisplayMemberBinding="{Binding Timestamp}" Width="140"/>
+                            <GridViewColumn Header="ФИО" DisplayMemberBinding="{Binding FullName}" Width="220"/>
+                            <GridViewColumn Header="Дата рожд." DisplayMemberBinding="{Binding PersonDob}" Width="90"/>
+                            <GridViewColumn Header="Паспорт" DisplayMemberBinding="{Binding PersonPassport}" Width="100"/>
+                            <GridViewColumn Header="Направл." DisplayMemberBinding="{Binding Direction}" Width="70"/>
+                            <GridViewColumn Header="Тип" DisplayMemberBinding="{Binding CrossingType}" Width="80"/>
+                            <GridViewColumn Header="ТС" DisplayMemberBinding="{Binding VehicleInfo}" Width="150"/>
+                            <GridViewColumn Header="Цель" DisplayMemberBinding="{Binding Purpose}" Width="100"/>
+                            <GridViewColumn Header="НП Следования" DisplayMemberBinding="{Binding DestinationTown}" Width="120"/>
+                            <GridViewColumn Header="Оператор" DisplayMemberBinding="{Binding OperatorUsername}" Width="100"/>
                         </GridView>
                     </ListView.View>
                 </ListView>

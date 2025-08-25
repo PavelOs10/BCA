@@ -15,7 +15,6 @@ namespace CheckpointApp
 
         public App()
         {
-            // Инициализация сервиса для работы с базой данных
             _databaseService = new DatabaseService();
         }
 
@@ -50,44 +49,45 @@ namespace CheckpointApp
                 }
             }
 
-            // После проверки или создания администратора, показываем окно входа.
-            ShowLoginWindow();
-        }
-
-        /// <summary>
-        /// Отображает окно входа и обрабатывает результат.
-        /// </summary>
-        private void ShowLoginWindow()
-        {
-            var loginWindow = new LoginWindow
+            // --- ИЗМЕНЕНИЕ: Запускаем бесконечный цикл аутентификации ---
+            // Этот цикл позволит нам возвращаться к окну входа после смены пользователя.
+            while (true)
             {
-                DataContext = new LoginViewModel(_databaseService)
-            };
-
-            // Показываем окно входа как диалоговое.
-            // Если вход успешен (окно возвращает true)...
-            if (loginWindow.ShowDialog() == true)
-            {
-                var loginViewModel = (LoginViewModel)loginWindow.DataContext;
-
-                // ...создаем и показываем главное окно приложения.
-                var mainWindow = new Views.MainWindow
+                var loginViewModel = new LoginViewModel(_databaseService);
+                var loginWindow = new LoginWindow
                 {
-                    DataContext = new MainViewModel(_databaseService, loginViewModel.LoggedInUser!)
+                    DataContext = loginViewModel
                 };
 
-                // Назначаем главное окно и устанавливаем режим завершения работы
-                // при его закрытии.
+                // Показываем окно входа как диалоговое.
+                // Если пользователь закрыл его, не авторизовавшись, выходим из цикла и завершаем приложение.
+                if (loginWindow.ShowDialog() != true)
+                {
+                    break; // Выход из цикла
+                }
+
+                // Если вход успешен, создаем и показываем главное окно.
+                var mainViewModel = new MainViewModel(_databaseService, loginViewModel.LoggedInUser!);
+                var mainWindow = new Views.MainWindow
+                {
+                    DataContext = mainViewModel
+                };
+
+                // Назначаем главное окно.
                 Current.MainWindow = mainWindow;
-                ShutdownMode = ShutdownMode.OnMainWindowClose;
-                mainWindow.Show();
+                mainWindow.ShowDialog(); // Показываем как диалог, чтобы код ждал его закрытия
+
+                // После закрытия MainWindow проверяем, была ли запрошена смена пользователя.
+                // Если нет, то пользователь просто закрыл программу. Выходим из цикла.
+                if (!mainViewModel.IsSwitchingUserRequested)
+                {
+                    break; // Выход из цикла
+                }
+                // Если IsSwitchingUserRequested = true, цикл начнется заново, и появится окно входа.
             }
-            // Если пользователь закрыл окно входа, не авторизовавшись,
-            // завершаем работу приложения.
-            else
-            {
-                Shutdown();
-            }
+
+            // Завершаем работу приложения, когда цикл прерывается.
+            Shutdown();
         }
     }
 }

@@ -64,6 +64,7 @@ namespace CheckpointApp.DataAccess
                     crossing_type TEXT NOT NULL,
                     operator_id INTEGER NOT NULL,
                     timestamp TEXT NOT NULL,
+                    is_deleted BOOLEAN NOT NULL DEFAULT 0,
                     FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
                     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL,
                     FOREIGN KEY (operator_id) REFERENCES users(id)
@@ -99,6 +100,16 @@ namespace CheckpointApp.DataAccess
             foreach (var command in tableCommands)
             {
                 connection.Execute(command);
+            }
+
+            var pragmaCommand = "PRAGMA table_info(crossings);";
+            var tableInfo = connection.Query<dynamic>(pragmaCommand).ToList();
+            bool columnExists = tableInfo.Any(col => col.name.ToString().Equals("is_deleted", StringComparison.OrdinalIgnoreCase));
+
+            if (!columnExists)
+            {
+                var alterCommand = "ALTER TABLE crossings ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT 0;";
+                connection.Execute(alterCommand);
             }
         }
 
@@ -183,6 +194,7 @@ namespace CheckpointApp.DataAccess
                     c.crossing_type AS CrossingType,
                     c.operator_id AS OperatorId,
                     c.timestamp AS Timestamp,
+                    c.is_deleted as IsDeleted,
                     p.last_name || ' ' || p.first_name || ' ' || IFNULL(p.patronymic, '') AS FullName,
                     p.dob as PersonDob,
                     p.passport_data as PersonPassport,
@@ -194,6 +206,23 @@ namespace CheckpointApp.DataAccess
                 JOIN users u ON c.operator_id = u.id
                 ORDER BY c.timestamp DESC";
             return await connection.QueryAsync<Crossing>(sql);
+        }
+
+        // --- НОВЫЙ МЕТОД: Для отчета по лицу ---
+        public async Task<IEnumerable<Crossing>> GetAllCrossingsByPersonIdAsync(int personId)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                SELECT
+                    c.timestamp AS Timestamp,
+                    c.direction AS Direction,
+                    c.crossing_type AS CrossingType,
+                    c.purpose AS Purpose,
+                    c.destination_town AS DestinationTown
+                FROM crossings c
+                WHERE c.is_deleted = 0 AND c.person_id = @PersonId
+                ORDER BY c.timestamp DESC";
+            return await connection.QueryAsync<Crossing>(sql, new { PersonId = personId });
         }
 
         public async Task<int> CreateCrossingAsync(Crossing crossing)
@@ -215,6 +244,14 @@ namespace CheckpointApp.DataAccess
             parameters.Add("Timestamp", crossing.Timestamp);
 
             return await connection.ExecuteScalarAsync<int>(sql, parameters);
+        }
+
+        public async Task<bool> MarkCrossingAsDeletedAsync(int crossingId)
+        {
+            using var connection = GetConnection();
+            var sql = "UPDATE crossings SET is_deleted = 1 WHERE id = @CrossingId";
+            var affectedRows = await connection.ExecuteAsync(sql, new { CrossingId = crossingId });
+            return affectedRows > 0;
         }
 
         public async Task<IEnumerable<Crossing>> GetCrossingsByDateRangeAsync(DateTime startDate, DateTime endDate)
@@ -241,7 +278,7 @@ namespace CheckpointApp.DataAccess
                 JOIN persons p ON c.person_id = p.id
                 LEFT JOIN vehicles v ON c.vehicle_id = v.id
                 JOIN users u ON c.operator_id = u.id
-                WHERE c.timestamp BETWEEN @StartDate AND @EndDate
+                WHERE c.is_deleted = 0 AND c.timestamp BETWEEN @StartDate AND @EndDate
                 ORDER BY c.timestamp DESC";
 
             return await connection.QueryAsync<Crossing>(sql, new
@@ -261,6 +298,13 @@ namespace CheckpointApp.DataAccess
             }
             var sql = $"SELECT DISTINCT {columnName} FROM {tableName} WHERE {columnName} IS NOT NULL AND {columnName} != '' ORDER BY {columnName}";
             return await connection.QueryAsync<string>(sql);
+        }
+
+        public async Task<Crossing?> GetLastCrossingByPersonIdAsync(int personId)
+        {
+            using var connection = GetConnection();
+            var sql = "SELECT direction AS Direction FROM crossings WHERE is_deleted = 0 AND person_id = @PersonId ORDER BY timestamp DESC LIMIT 1";
+            return await connection.QuerySingleOrDefaultAsync<Crossing>(sql, new { PersonId = personId });
         }
         #endregion
 
@@ -283,6 +327,24 @@ namespace CheckpointApp.DataAccess
             return await connection.QuerySingleOrDefaultAsync<Person>(sql, new { PassportData = passportData.ToUpper() });
         }
 
+        public async Task<IEnumerable<Person>> GetAllPersonsAsync()
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                SELECT
+                    id AS Id,
+                    last_name AS LastName,
+                    first_name AS FirstName,
+                    patronymic AS Patronymic,
+                    dob AS Dob,
+                    citizenship AS Citizenship,
+                    passport_data AS PassportData,
+                    notes AS Notes
+                FROM persons
+                ORDER BY last_name, first_name";
+            return await connection.QueryAsync<Person>(sql);
+        }
+
         public async Task<Vehicle?> FindVehicleByLicensePlateAsync(string licensePlate)
         {
             using var connection = GetConnection();
@@ -296,6 +358,20 @@ namespace CheckpointApp.DataAccess
             return await connection.QuerySingleOrDefaultAsync<Vehicle>(sql, new { LicensePlate = licensePlate.ToUpper() });
         }
 
+        // --- НОВЫЙ МЕТОД: Для отчета по лицу ---
+        public async Task<IEnumerable<Vehicle>> GetVehiclesByPersonIdAsync(int personId)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                SELECT DISTINCT
+                    v.make AS Make,
+                    v.license_plate AS LicensePlate
+                FROM vehicles v
+                JOIN crossings c ON v.id = c.vehicle_id
+                WHERE c.is_deleted = 0 AND c.person_id = @PersonId";
+            return await connection.QueryAsync<Vehicle>(sql, new { PersonId = personId });
+        }
+
         public async Task<int> CreatePersonAsync(Person person)
         {
             using var connection = GetConnection();
@@ -304,6 +380,14 @@ namespace CheckpointApp.DataAccess
                 VALUES (@LastName, @FirstName, @Patronymic, @Dob, @Citizenship, @PassportData, @Notes)
                 RETURNING id;";
             return await connection.ExecuteScalarAsync<int>(sql, person);
+        }
+
+        public async Task<bool> UpdatePersonNotesAsync(int personId, string? notes)
+        {
+            using var connection = GetConnection();
+            var sql = "UPDATE persons SET notes = @Notes WHERE id = @PersonId";
+            var affectedRows = await connection.ExecuteAsync(sql, new { Notes = notes, PersonId = personId });
+            return affectedRows > 0;
         }
 
         public async Task<int> CreateVehicleAsync(Vehicle vehicle)
@@ -326,12 +410,74 @@ namespace CheckpointApp.DataAccess
                 VALUES (@CrossingId, @Description, @Quantity, @Unit);";
             await connection.ExecuteAsync(sql, goods);
         }
+
+        public async Task<IEnumerable<GoodReportItem>> GetGoodsByDateRangeAsync(DateTime startDate, DateTime endDate)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                SELECT
+                    g.description AS Description,
+                    SUM(g.quantity) AS TotalQuantity,
+                    g.unit AS Unit
+                FROM goods g
+                JOIN crossings c ON g.crossing_id = c.id
+                WHERE c.is_deleted = 0 AND c.timestamp BETWEEN @StartDate AND @EndDate
+                GROUP BY g.description, g.unit
+                ORDER BY TotalQuantity DESC;
+            ";
+            return await connection.QueryAsync<GoodReportItem>(sql, new
+            {
+                StartDate = startDate.ToString("yyyy-MM-dd HH:mm:ss"),
+                EndDate = endDate.ToString("yyyy-MM-dd HH:mm:ss")
+            });
+        }
+
+        public async Task<IEnumerable<PersonGoodsItem>> GetGoodsByPersonIdAndDateRangeAsync(int personId, DateTime startDate, DateTime endDate)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                SELECT
+                    c.timestamp AS Timestamp,
+                    c.direction AS Direction,
+                    g.description AS Description,
+                    g.quantity AS Quantity,
+                    g.unit AS Unit
+                FROM goods g
+                JOIN crossings c ON g.crossing_id = c.id
+                WHERE c.is_deleted = 0 AND c.person_id = @PersonId
+                  AND c.timestamp BETWEEN @StartDate AND @EndDate
+                ORDER BY c.timestamp DESC;
+            ";
+            return await connection.QueryAsync<PersonGoodsItem>(sql, new
+            {
+                PersonId = personId,
+                StartDate = startDate.ToString("yyyy-MM-dd HH:mm:ss"),
+                EndDate = endDate.ToString("yyyy-MM-dd HH:mm:ss")
+            });
+        }
+
+        // --- НОВЫЙ МЕТОД: Для отчета по лицу ---
+        public async Task<IEnumerable<GoodReportItem>> GetGoodsSummaryByPersonIdAsync(int personId)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                SELECT
+                    g.description AS Description,
+                    SUM(g.quantity) AS TotalQuantity,
+                    g.unit AS Unit
+                FROM goods g
+                JOIN crossings c ON g.crossing_id = c.id
+                WHERE c.is_deleted = 0 AND c.person_id = @PersonId
+                GROUP BY g.description, g.unit
+                ORDER BY TotalQuantity DESC;
+            ";
+            return await connection.QueryAsync<GoodReportItem>(sql, new { PersonId = personId });
+        }
         #endregion
 
         #region Security Lists Methods
         public async Task<IEnumerable<WantedPerson>> GetWantedPersonsAsync()
         {
-            // --- ИСПРАВЛЕНИЕ: Явное сопоставление полей ---
             using var connection = GetConnection();
             var sql = @"
                 SELECT
@@ -349,7 +495,6 @@ namespace CheckpointApp.DataAccess
 
         public async Task<int> AddWantedPersonAsync(WantedPerson person)
         {
-            // --- ИСПРАВЛЕНИЕ: Явная передача параметров ---
             using var connection = GetConnection();
             var sql = @"
                 INSERT INTO wanted_persons (last_name, first_name, patronymic, dob, info, actions)
@@ -377,7 +522,6 @@ namespace CheckpointApp.DataAccess
 
         public async Task<IEnumerable<WatchlistPerson>> GetWatchlistPersonsAsync()
         {
-            // --- ИСПРАВЛЕНИЕ: Явное сопоставление полей ---
             using var connection = GetConnection();
             var sql = @"
                 SELECT
@@ -393,7 +537,6 @@ namespace CheckpointApp.DataAccess
 
         public async Task<int> AddWatchlistPersonAsync(WatchlistPerson person)
         {
-            // --- ИСПРАВЛЕНИЕ: Явная передача параметров ---
             using var connection = GetConnection();
             var sql = @"
                 INSERT INTO watchlist_persons (last_name, first_name, patronymic, dob, reason)
@@ -442,6 +585,7 @@ namespace CheckpointApp.DataAccess
                         person_id,
                         MAX(timestamp) AS last_timestamp
                     FROM crossings
+                    WHERE is_deleted = 0
                     GROUP BY person_id
                 )
                 SELECT
@@ -462,6 +606,30 @@ namespace CheckpointApp.DataAccess
             return await connection.QueryAsync<PersonInZone>(sql);
         }
 
+        // --- НОВЫЙ МЕТОД: Для статистики на панели мониторинга ---
+        public async Task<InZoneStats> GetInZoneStatsAsync()
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                WITH LastCrossing AS (
+                    SELECT
+                        person_id,
+                        vehicle_id,
+                        MAX(timestamp) AS last_timestamp
+                    FROM crossings
+                    WHERE is_deleted = 0
+                    GROUP BY person_id
+                )
+                SELECT
+                    COUNT(DISTINCT c.person_id) as PersonCount,
+                    COUNT(DISTINCT c.vehicle_id) as VehicleCount
+                FROM crossings c
+                JOIN LastCrossing lc ON c.person_id = lc.person_id AND c.timestamp = lc.last_timestamp
+                WHERE c.direction = 'ВЪЕЗД';
+            ";
+            return await connection.QuerySingleOrDefaultAsync<InZoneStats>(sql) ?? new InZoneStats();
+        }
+
         public async Task<DashboardStats> GetDashboardStatsAsync(DateTime startDate, DateTime endDate)
         {
             using var connection = GetConnection();
@@ -472,7 +640,7 @@ namespace CheckpointApp.DataAccess
                     SUM(CASE WHEN direction = 'ВЫЕЗД' THEN 1 ELSE 0 END) AS ExitedPersons,
                     COUNT(DISTINCT CASE WHEN direction = 'ВЫЕЗД' THEN vehicle_id END) AS ExitedVehicles
                 FROM crossings
-                WHERE timestamp BETWEEN @StartDate AND @EndDate";
+                WHERE is_deleted = 0 AND timestamp BETWEEN @StartDate AND @EndDate";
 
             var result = await connection.QuerySingleOrDefaultAsync<DashboardStats>(sql, new
             {

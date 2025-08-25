@@ -14,7 +14,7 @@ namespace CheckpointApp.Models
         public DateTime CreatedAt { get; set; }
     }
 
-    // Модель физического лица (теперь наследуется от ObservableObject для живого поиска)
+    // Модель физического лица
     public partial class Person : ObservableObject
     {
         [ObservableProperty] private int _id;
@@ -25,6 +25,8 @@ namespace CheckpointApp.Models
         [ObservableProperty] private string _citizenship = string.Empty;
         [ObservableProperty] private string _passportData = string.Empty;
         [ObservableProperty] private string? _notes;
+
+        public string FullName => $"{LastName} {FirstName} {Patronymic}".Trim();
     }
 
     // Модель транспортного средства
@@ -48,16 +50,17 @@ namespace CheckpointApp.Models
         public int OperatorId { get; set; }
         public string Timestamp { get; set; } = string.Empty;
 
-        // Свойства для отображения и аналитики
         public string FullName { get; set; } = string.Empty;
         public string PersonDob { get; set; } = string.Empty;
         public string PersonPassport { get; set; } = string.Empty;
         public string VehicleInfo { get; set; } = string.Empty;
         public string OperatorUsername { get; set; } = string.Empty;
         public string? Citizenship { get; set; }
+        public bool IsOnWantedList { get; set; }
+        public bool IsOnWatchlist { get; set; }
+        public bool IsDeleted { get; set; }
     }
 
-    // Модель товара/груза
     public class Good
     {
         public int ID { get; set; }
@@ -67,7 +70,6 @@ namespace CheckpointApp.Models
         public string Unit { get; set; } = string.Empty;
     }
 
-    // Модель для временного хранения товаров
     public class TempGood
     {
         public string Description { get; set; } = string.Empty;
@@ -75,7 +77,6 @@ namespace CheckpointApp.Models
         public string Unit { get; set; } = string.Empty;
     }
 
-    // Модель лица в списке розыска
     public class WantedPerson
     {
         public int ID { get; set; }
@@ -88,7 +89,6 @@ namespace CheckpointApp.Models
         public DateTime CreatedAt { get; set; }
     }
 
-    // Модель лица в списке наблюдения
     public class WatchlistPerson
     {
         public int ID { get; set; }
@@ -99,7 +99,6 @@ namespace CheckpointApp.Models
         public string Reason { get; set; } = string.Empty;
     }
 
-    // Модель для окна "Лица в погранзоне"
     public class PersonInZone
     {
         public string FullName { get; set; } = string.Empty;
@@ -111,13 +110,34 @@ namespace CheckpointApp.Models
         public string VehicleInfo { get; set; } = string.Empty;
     }
 
-    // --- НОВАЯ МОДЕЛЬ ---
-    // Модель для хранения статистики панели мониторинга
     public class DashboardStats
     {
         public int EnteredPersons { get; set; }
         public int EnteredVehicles { get; set; }
         public int ExitedPersons { get; set; }
         public int ExitedVehicles { get; set; }
+    }
+
+    public class GoodReportItem
+    {
+        public string Description { get; set; } = string.Empty;
+        public double TotalQuantity { get; set; }
+        public string Unit { get; set; } = string.Empty;
+    }
+
+    public class PersonGoodsItem
+    {
+        public string Timestamp { get; set; } = string.Empty;
+        public string Direction { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public double Quantity { get; set; }
+        public string Unit { get; set; } = string.Empty;
+    }
+
+    // --- НОВАЯ МОДЕЛЬ: Для статистики на панели мониторинга ---
+    public class InZoneStats
+    {
+        public int PersonCount { get; set; }
+        public int VehicleCount { get; set; }
     }
 }

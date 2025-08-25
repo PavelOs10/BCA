@@ -15,13 +15,13 @@
                 <TextBlock Text="-" VerticalAlignment="Center"/>
                 <DatePicker SelectedDate="{Binding EndDate}" VerticalAlignment="Center" Margin="5"/>
 
-                <TextBlock Text="Группировка:" VerticalAlignment="Center" Margin="15,0,5,0"/>
+                <TextBlock Text="Группировка (для общих отчетов):" VerticalAlignment="Center" Margin="15,0,5,0"/>
                 <ComboBox ItemsSource="{Binding GroupingOptions}" 
                           SelectedItem="{Binding SelectedGroupingOption}" 
                           Width="120"
                           VerticalAlignment="Center"/>
 
-                <Button Content="Сформировать отчет" Command="{Binding GenerateReportCommand}" Margin="20,5,5,5" Padding="10,2"/>
+                <Button Content="Сформировать общие отчеты" Command="{Binding GenerateReportCommand}" Margin="20,5,5,5" Padding="10,2"/>
                 <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Margin="10,0" FontStyle="Italic"/>
             </StackPanel>
         </Border>
@@ -31,20 +31,88 @@
                 <TextBlock Text="{Binding SummaryText}" Margin="15" FontSize="16" TextWrapping="Wrap"/>
             </TabItem>
             <TabItem Header="Динамика">
-                <!-- ЗАМЕНА: LiveCharts заменен на OxyPlot -->
                 <oxy:PlotView Model="{Binding DynamicsModel}" />
             </TabItem>
             <TabItem Header="География">
-                <!-- ЗАМЕНА: LiveCharts заменен на OxyPlot -->
                 <oxy:PlotView Model="{Binding GeographyModel}" />
             </TabItem>
             <TabItem Header="Нагрузка по времени">
-                <!-- ЗАМЕНА: LiveCharts заменен на OxyPlot -->
                 <oxy:PlotView Model="{Binding HeatmapModel}" />
             </TabItem>
             <TabItem Header="Рейтинг операторов">
-                <!-- ЗАМЕНА: LiveCharts заменен на OxyPlot -->
                 <oxy:PlotView Model="{Binding OperatorsModel}" />
+            </TabItem>
+            <TabItem Header="Общая по товарам">
+                <oxy:PlotView Model="{Binding GoodsModel}" />
+            </TabItem>
+            <!-- НОВАЯ ВКЛАДКА ДЛЯ АНАЛИЗА ПО КОНКРЕТНОМУ ЛИЦУ -->
+            <TabItem Header="Анализ по лицу">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Margin="5" Padding="5" BorderBrush="LightGray" BorderThickness="1">
+                        <StackPanel Orientation="Horizontal">
+                            <Label Content="Поиск по ФИО/паспорту:" VerticalAlignment="Center"/>
+                            <TextBox Width="300" Text="{Binding PersonSearchText, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center"/>
+                            <TextBlock Text=" | Выбран:" Margin="10,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding SelectedPersonForReport.FullName, FallbackValue='никто не выбран'}" FontWeight="Bold" VerticalAlignment="Center" MaxWidth="200" TextTrimming="CharacterEllipsis"/>
+                            <Button Content="Сформировать отчет по выбранному лицу" Command="{Binding GeneratePersonGoodsReportCommand}" Margin="20,0,0,0" Padding="5,2"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="420"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <GroupBox Grid.Column="0" Header="1. Выберите человека" Margin="5">
+                            <ListView ItemsSource="{Binding PersonsView}"
+                                      SelectedItem="{Binding SelectedPersonForReport}">
+                                <ListView.View>
+                                    <GridView>
+                                        <GridViewColumn Header="ФИО" DisplayMemberBinding="{Binding FullName}" Width="250"/>
+                                        <GridViewColumn Header="Паспорт" DisplayMemberBinding="{Binding PassportData}" Width="120"/>
+                                    </GridView>
+                                </ListView.View>
+                            </ListView>
+                        </GroupBox>
+
+                        <Grid Grid.Column="1">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="Auto"/>
+                                <RowDefinition Height="200"/>
+                            </Grid.RowDefinitions>
+
+                            <GroupBox Grid.Row="0" Header="2. Детальный список перемещенных товаров" Margin="5">
+                                <ListView ItemsSource="{Binding PersonGoodsHistory}">
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridViewColumn Header="Дата и время" DisplayMemberBinding="{Binding Timestamp}" Width="140"/>
+                                            <GridViewColumn Header="Направление" DisplayMemberBinding="{Binding Direction}" Width="100"/>
+                                            <GridViewColumn Header="Наименование" DisplayMemberBinding="{Binding Description}" Width="250"/>
+                                            <GridViewColumn Header="Количество" DisplayMemberBinding="{Binding Quantity}" Width="100"/>
+                                            <GridViewColumn Header="Ед. изм." DisplayMemberBinding="{Binding Unit}" Width="80"/>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                            </GroupBox>
+
+                            <GridSplitter Grid.Row="1" Height="5" HorizontalAlignment="Stretch" Background="LightGray"/>
+
+                            <GroupBox Grid.Row="2" Header="3. Итоговая сводка за период" Margin="5">
+                                <ListView ItemsSource="{Binding PersonGoodsSummary}">
+                                    <ListView.View>
+                                        <GridView>
+                                            <GridViewColumn Header="Наименование" DisplayMemberBinding="{Binding Description}" Width="350"/>
+                                            <GridViewColumn Header="Общее количество" DisplayMemberBinding="{Binding TotalQuantity}" Width="150"/>
+                                            <GridViewColumn Header="Ед. изм." DisplayMemberBinding="{Binding Unit}" Width="100"/>
+                                        </GridView>
+                                    </ListView.View>
+                                </ListView>
+                            </GroupBox>
+                        </Grid>
+                    </Grid>
+                </DockPanel>
             </TabItem>
         </TabControl>
     </DockPanel>
