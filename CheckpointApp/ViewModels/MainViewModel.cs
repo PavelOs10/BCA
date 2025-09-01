@@ -65,6 +65,8 @@ namespace CheckpointApp.ViewModels
         #region Dashboard Properties
         [ObservableProperty] private DateTime _dashboardStartDate;
         [ObservableProperty] private DateTime _dashboardEndDate;
+        [ObservableProperty] private DateTime _dashboardStartTime;
+        [ObservableProperty] private DateTime _dashboardEndTime;
         [ObservableProperty] private int _enteredPersonsCount;
         [ObservableProperty] private int _enteredVehiclesCount;
         [ObservableProperty] private int _exitedPersonsCount;
@@ -112,9 +114,16 @@ namespace CheckpointApp.ViewModels
             _statusMessage = "";
 
             _dashboardStartDate = DateTime.Today;
-            _dashboardEndDate = DateTime.Today.AddDays(1).AddTicks(-1);
+            _dashboardEndDate = DateTime.Today;
+            _dashboardStartTime = DateTime.Today; // Time is 00:00:00
+            _dashboardEndTime = DateTime.Today.AddDays(1).AddTicks(-1); // Time is 23:59:59
 
             InitializeNewEntry();
+        }
+
+        private DateTime GetCombinedDateTime(DateTime date, DateTime time)
+        {
+            return date.Date + time.TimeOfDay;
         }
 
         private bool FilterCrossings(object obj)
@@ -130,7 +139,9 @@ namespace CheckpointApp.ViewModels
             {
                 if (DateTime.TryParse(crossing.Timestamp, out var timestamp))
                 {
-                    return timestamp >= DashboardStartDate && timestamp <= DashboardEndDate;
+                    var finalStartDate = GetCombinedDateTime(DashboardStartDate, DashboardStartTime);
+                    var finalEndDate = GetCombinedDateTime(DashboardEndDate, DashboardEndTime);
+                    return timestamp >= finalStartDate && timestamp <= finalEndDate;
                 }
                 return false;
             }
@@ -522,7 +533,7 @@ namespace CheckpointApp.ViewModels
             ResetAllFilters(false);
             _isDateFilterActive = true;
             CrossingsView.Refresh();
-            StatusMessage = $"Отображены пересечения за период с {DashboardStartDate:dd.MM.yyyy} по {DashboardEndDate:dd.MM.yyyy}";
+            StatusMessage = $"Отображены пересечения за период с {GetCombinedDateTime(DashboardStartDate, DashboardStartTime):g} по {GetCombinedDateTime(DashboardEndDate, DashboardEndTime):g}";
         }
         #endregion
 
@@ -536,9 +547,14 @@ namespace CheckpointApp.ViewModels
             {
                 SecurityCheckStatus = "Заполните ФИО и дату рождения для проверки.";
                 SecurityCheckColor = Brushes.LightGray;
+                MessageBox.Show("Для выполнения проверки необходимо заполнить поля 'Фамилия', 'Имя' и 'Дата рождения'.", "Информация", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
+
             CurrentPerson.Dob = CurrentPersonDob.Value.ToString("dd.MM.yyyy");
+            CurrentPerson.LastName = CurrentPerson.LastName.ToUpper();
+            CurrentPerson.FirstName = CurrentPerson.FirstName.ToUpper();
+            CurrentPerson.Patronymic = CurrentPerson.Patronymic?.ToUpper();
 
             StatusMessage = "Выполняется проверка по базам...";
             var result = await _securityService.PerformChecksAsync(CurrentPerson, true);
@@ -548,16 +564,19 @@ namespace CheckpointApp.ViewModels
             {
                 SecurityCheckStatus = "ВНИМАНИЕ: Найдено совпадение в списке РОЗЫСКА!";
                 SecurityCheckColor = Brushes.Red;
+                MessageBox.Show("Обнаружено совпадение в списке розыска! Рекомендуется провести дополнительную проверку.", "Лицо в розыске", MessageBoxButton.OK, MessageBoxImage.Error);
             }
             else if (result.IsOnWatchlist)
             {
                 SecurityCheckStatus = "Внимание: Найдено совпадение в списке НАБЛЮДЕНИЯ.";
                 SecurityCheckColor = Brushes.Orange;
+                MessageBox.Show("Обнаружено совпадение в списке наблюдения.", "Лицо в списке наблюдения", MessageBoxButton.OK, MessageBoxImage.Warning);
             }
             else
             {
                 SecurityCheckStatus = "Проверка пройдена. Совпадений не найдено.";
                 SecurityCheckColor = Brushes.LightGreen;
+                MessageBox.Show("Проверка по спискам розыска и наблюдения завершена. Совпадений не найдено.", "Проверка пройдена", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
         #endregion
@@ -578,7 +597,10 @@ namespace CheckpointApp.ViewModels
         private async Task UpdateAllDashboardStats()
         {
             StatusMessage = "Обновление статистики...";
-            var periodStatsTask = _databaseService.GetDashboardStatsAsync(DashboardStartDate, DashboardEndDate.AddDays(1).AddTicks(-1));
+            var finalStartDate = GetCombinedDateTime(DashboardStartDate, DashboardStartTime);
+            var finalEndDate = GetCombinedDateTime(DashboardEndDate, DashboardEndTime);
+
+            var periodStatsTask = _databaseService.GetDashboardStatsAsync(finalStartDate, finalEndDate);
             var inZoneStatsTask = _databaseService.GetInZoneStatsAsync();
             var wantedCountTask = _databaseService.GetWantedPersonsCountAsync();
             var watchlistCountTask = _databaseService.GetWatchlistPersonsCountAsync();

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -14,7 +15,6 @@ namespace CheckpointApp.Services
         public bool IsAllowed { get; set; } = true;
         public string Message { get; set; } = string.Empty;
         public bool IsWarning { get; set; }
-        // --- ИЗМЕНЕНИЕ: Добавлены флаги для проактивной проверки (правка №6) ---
         public bool IsOnWantedList { get; set; } = false;
         public bool IsOnWatchlist { get; set; } = false;
     }
@@ -33,7 +33,6 @@ namespace CheckpointApp.Services
             var wantedCheckResult = await CheckWantedListAsync(personToCheck);
             if (!wantedCheckResult.IsAllowed)
             {
-                // Если это проактивная проверка, не показываем диалог, а просто возвращаем результат
                 if (isProactive)
                 {
                     return new SecurityCheckResult { IsAllowed = false, IsOnWantedList = true };
@@ -61,6 +60,28 @@ namespace CheckpointApp.Services
             return new SecurityCheckResult { IsAllowed = true };
         }
 
+        // --- НОВЫЙ ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ НАДЕЖНОГО СРАВНЕНИЯ ДАТ ---
+        private bool AreDatesMatching(string dateStr1, string dateStr2)
+        {
+            if (string.IsNullOrWhiteSpace(dateStr1) || string.IsNullOrWhiteSpace(dateStr2))
+            {
+                return false; // Если одна из дат пустая, они не совпадают
+            }
+
+            // Пытаемся преобразовать строки в даты
+            bool success1 = DateTime.TryParse(dateStr1, out var date1);
+            bool success2 = DateTime.TryParse(dateStr2, out var date2);
+
+            if (success1 && success2)
+            {
+                // Если обе даты успешно преобразованы, сравниваем их без учета времени
+                return date1.Date == date2.Date;
+            }
+
+            // Если преобразовать не удалось, возвращаемся к простому сравнению строк (на всякий случай)
+            return string.Equals(dateStr1.Trim(), dateStr2.Trim(), StringComparison.OrdinalIgnoreCase);
+        }
+
         private async Task<SecurityCheckResult> CheckWantedListAsync(Person personToCheck)
         {
             var wantedPersons = await _databaseService.GetWantedPersonsAsync();
@@ -71,10 +92,10 @@ namespace CheckpointApp.Services
             var normalizedPatronymic = NameNormalizer.NormalizeName(personToCheck.Patronymic ?? "");
 
             var exactMatch = wantedPersons.FirstOrDefault(wp =>
-                wp.LastName.ToUpper() == personToCheck.LastName.ToUpper() &&
-                wp.FirstName.ToUpper() == personToCheck.FirstName.ToUpper() &&
-                (wp.Patronymic ?? "").ToUpper() == (personToCheck.Patronymic ?? "").ToUpper() &&
-                wp.Dob == personToCheck.Dob);
+                wp.LastName.Equals(personToCheck.LastName, StringComparison.OrdinalIgnoreCase) &&
+                wp.FirstName.Equals(personToCheck.FirstName, StringComparison.OrdinalIgnoreCase) &&
+                (wp.Patronymic ?? "").Equals((personToCheck.Patronymic ?? ""), StringComparison.OrdinalIgnoreCase) &&
+                AreDatesMatching(wp.Dob, personToCheck.Dob)); // <-- ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД СРАВНЕНИЯ
 
             if (exactMatch != null)
             {
@@ -94,7 +115,7 @@ namespace CheckpointApp.Services
                         matches.Add(BuildMatchMessage("Совпадение ФИО", wp));
                     else if (dbNormFirstName == normalizedFirstName && dbNormPatronymic == normalizedPatronymic && !string.IsNullOrEmpty(normalizedPatronymic))
                         matches.Add(BuildMatchMessage("Совпадение Имени и Отчества", wp));
-                    else if (dbNormLastName == normalizedLastName && wp.Dob == personToCheck.Dob)
+                    else if (dbNormLastName == normalizedLastName && AreDatesMatching(wp.Dob, personToCheck.Dob)) // <-- ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД СРАВНЕНИЯ
                         matches.Add(BuildMatchMessage("Совпадение Фамилии и Даты рождения", wp));
                 }
             }
@@ -124,9 +145,9 @@ namespace CheckpointApp.Services
         {
             var watchlist = await _databaseService.GetWatchlistPersonsAsync();
             var match = watchlist.FirstOrDefault(p =>
-                p.LastName.ToUpper() == personToCheck.LastName.ToUpper() &&
-                p.FirstName.ToUpper() == personToCheck.FirstName.ToUpper() &&
-                p.Dob == personToCheck.Dob);
+                p.LastName.Equals(personToCheck.LastName, StringComparison.OrdinalIgnoreCase) &&
+                p.FirstName.Equals(personToCheck.FirstName, StringComparison.OrdinalIgnoreCase) &&
+                AreDatesMatching(p.Dob, personToCheck.Dob)); // <-- ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД СРАВНЕНИЯ
 
             if (match != null)
             {

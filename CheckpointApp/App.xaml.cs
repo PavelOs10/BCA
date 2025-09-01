@@ -41,7 +41,7 @@ namespace CheckpointApp
 
                 if (loginWindow.ShowDialog() != true)
                 {
-                    break; // Пользователь отменил вход
+                    break;
                 }
 
                 if (loginViewModel.LoggedInUser == null)
@@ -50,30 +50,26 @@ namespace CheckpointApp
                     break;
                 }
 
-                // --- ИЗМЕНЕНИЕ ЛОГИКИ ЗАПУСКА ---
-                // 1. Создаем ViewModel
                 var mainViewModel = new MainViewModel(databaseService, loginViewModel.LoggedInUser);
 
-                // 2. Асинхронно и с ожиданием загружаем все необходимые данные
                 bool isDataLoadedSuccessfully = await mainViewModel.LoadDataAsync();
 
-                // 3. Если при загрузке произошла ошибка, не продолжаем и выходим
                 if (!isDataLoadedSuccessfully)
                 {
-                    // Сообщение об ошибке будет показано внутри метода LoadDataAsync
                     break;
                 }
 
-                // 4. Только после успешной загрузки данных создаем и показываем главное окно
                 var mainWindow = new MainWindow
                 {
                     DataContext = mainViewModel
                 };
 
                 Current.MainWindow = mainWindow;
-                mainWindow.ShowDialog(); // Ожидаем закрытия главного окна
+                mainWindow.ShowDialog();
 
-                // Если пользователь закрыл окно, а не нажал "Сменить оператора"
+                // --- ИЗМЕНЕНИЕ: Добавлена небольшая задержка ---
+                await Task.Delay(100);
+
                 if (!mainViewModel.IsSwitchingUserRequested)
                 {
                     break;
@@ -84,3 +80,4 @@ namespace CheckpointApp
         }
     }
 }
+

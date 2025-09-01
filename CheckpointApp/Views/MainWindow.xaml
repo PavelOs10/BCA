@@ -70,6 +70,14 @@
                 <Button Content="Обновить" Command="{Binding RefreshDataCommand}"/>
                 <Button Content="Удалить" Command="{Binding DeleteCrossingCommand}" Background="#FFC1C1"/>
                 <Separator/>
+                <Button Command="{Binding ProactiveSecurityCheckCommand}" 
+                        Padding="5,2" FontWeight="Bold" Background="#FFF2CC"
+                        ToolTip="Заполните Фамилию, Имя и Дату рождения, затем нажмите для проверки по спискам без сохранения.">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Предварительная проверка"/>
+                    </StackPanel>
+                </Button>
+                <Separator/>
                 <Button Content="Товары/Грузы" Command="{Binding ShowGoodsWindowCommand}"/>
             </ToolBar>
         </ToolBarTray>
@@ -77,6 +85,11 @@
         <StatusBar DockPanel.Dock="Bottom">
             <StatusBarItem>
                 <TextBlock Text="{Binding StatusMessage}"/>
+            </StatusBarItem>
+            <StatusBarItem HorizontalAlignment="Right">
+                <Border Background="{Binding SecurityCheckColor}" CornerRadius="5" Padding="10,2" Margin="0,0,5,0">
+                    <TextBlock Text="{Binding SecurityCheckStatus}" Foreground="Black"/>
+                </Border>
             </StatusBarItem>
         </StatusBar>
 
@@ -86,20 +99,21 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- ПАНЕЛЬ МОНИТОРИНГА -->
             <Border Grid.Row="0" Margin="5" Padding="5" BorderBrush="LightGray" BorderThickness="1">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
-                    <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <!-- Левый блок: Статистика по периоду -->
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
                         <TextBlock Text="Статистика за период:" FontWeight="Bold" VerticalAlignment="Center"/>
                         <DatePicker SelectedDate="{Binding DashboardStartDate}" Margin="5,0" VerticalAlignment="Center"/>
+                        <xctk:TimePicker Value="{Binding DashboardStartTime}" Format="ShortTime" Margin="0,0,5,0" VerticalAlignment="Center"/>
                         <TextBlock Text="-" VerticalAlignment="Center"/>
                         <DatePicker SelectedDate="{Binding DashboardEndDate}" Margin="5,0" VerticalAlignment="Center"/>
+                        <xctk:TimePicker Value="{Binding DashboardEndTime}" Format="ShortTime" Margin="0,0,5,0" VerticalAlignment="Center"/>
                         <Button Content="Применить" Command="{Binding UpdateAllDashboardStatsCommand}" Margin="5,0" Padding="5,0"/>
                         <Separator Margin="10,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
                         <TextBlock Text="Въехало:" VerticalAlignment="Center"/>
@@ -115,13 +129,8 @@
                         <TextBlock Text="тс" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <Button Grid.Column="1" Command="{Binding ProactiveSecurityCheckCommand}" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="10, 2" FontWeight="Bold" ToolTip="Проверить введенные данные по спискам без сохранения">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock Text="ПРЕДВАРИТЕЛЬНАЯ ПРОВЕРКА"/>
-                        </StackPanel>
-                    </Button>
-
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <!-- Правый блок: Общая статистика -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Separator Margin="10,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
                         <TextBlock Text="В погранзоне:" VerticalAlignment="Center" FontWeight="Bold"/>
                         <TextBlock Text="{Binding PersonsInZoneCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center" Foreground="Blue"/>
