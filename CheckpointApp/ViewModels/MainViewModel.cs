@@ -58,7 +58,6 @@ namespace CheckpointApp.ViewModels
         [ObservableProperty] private string _statusMessage;
         [ObservableProperty] private bool _isAdmin;
 
-        // --- ИЗМЕНЕНИЕ: Свойства для проактивной проверки (правка №6) ---
         [ObservableProperty] private string _securityCheckStatus = "Данные не проверялись";
         [ObservableProperty] private Brush _securityCheckColor = Brushes.Transparent;
         #endregion
@@ -76,12 +75,12 @@ namespace CheckpointApp.ViewModels
         [ObservableProperty] private int _vehiclesInZoneCount;
         #endregion
 
-        #region Filtering Properties (Правки №1, №2, №5)
+        #region Filtering Properties
         [ObservableProperty] private string? _filterCitizenship;
         [ObservableProperty] private string? _filterPurpose;
         [ObservableProperty] private string? _filterVehicle;
-        private int? _filterPersonId = null; // Для фильтра по конкретному человеку
-        private bool _isDateFilterActive = false; // Для фильтра по периоду с дашборда
+        private int? _filterPersonId = null;
+        private bool _isDateFilterActive = false;
         #endregion
 
         public MainViewModel(DatabaseService databaseService, User currentUser)
@@ -116,21 +115,17 @@ namespace CheckpointApp.ViewModels
             _dashboardEndDate = DateTime.Today.AddDays(1).AddTicks(-1);
 
             InitializeNewEntry();
-            _ = LoadInitialData();
         }
 
-        // --- ИЗМЕНЕНИЕ: Логика фильтрации расширена для всех правок ---
         private bool FilterCrossings(object obj)
         {
             if (obj is not Crossing crossing) return false;
 
-            // Фильтр по истории одного человека (правка №2)
             if (_filterPersonId.HasValue)
             {
                 return crossing.PersonId == _filterPersonId.Value;
             }
 
-            // Фильтр по дате с дашборда (правка №5)
             if (_isDateFilterActive)
             {
                 if (DateTime.TryParse(crossing.Timestamp, out var timestamp))
@@ -140,7 +135,6 @@ namespace CheckpointApp.ViewModels
                 return false;
             }
 
-            // Стандартные фильтры
             var lastNameFilter = CurrentPerson.LastName?.Trim();
             var firstNameFilter = CurrentPerson.FirstName?.Trim();
             var passportFilter = CurrentPerson.PassportData?.Trim();
@@ -150,7 +144,6 @@ namespace CheckpointApp.ViewModels
             if (!string.IsNullOrWhiteSpace(firstNameFilter)) baseFilterMatch &= crossing.FullName.Contains(firstNameFilter, StringComparison.OrdinalIgnoreCase);
             if (!string.IsNullOrWhiteSpace(passportFilter)) baseFilterMatch &= crossing.PersonPassport.StartsWith(passportFilter, StringComparison.OrdinalIgnoreCase);
 
-            // Новые фильтры (правка №1)
             if (!string.IsNullOrEmpty(FilterCitizenship) && FilterCitizenship != "ВСЕ")
                 baseFilterMatch &= (crossing.Citizenship ?? "").Equals(FilterCitizenship, StringComparison.OrdinalIgnoreCase);
 
@@ -191,7 +184,6 @@ namespace CheckpointApp.ViewModels
             }
         }
 
-        // --- ИЗМЕНЕНИЕ: Триггеры для обновления вида при изменении фильтров (правка №1) ---
         partial void OnFilterCitizenshipChanged(string? value) => CrossingsView.Refresh();
         partial void OnFilterPurposeChanged(string? value) => CrossingsView.Refresh();
         partial void OnFilterVehicleChanged(string? value) => CrossingsView.Refresh();
@@ -214,85 +206,102 @@ namespace CheckpointApp.ViewModels
             TemporaryGoodsList.Clear();
             StatusMessage = "Готов к работе.";
 
-            // Сброс проактивной проверки
             SecurityCheckStatus = "Данные не проверялись";
             SecurityCheckColor = Brushes.Transparent;
 
-            // Сброс всех фильтров
             ResetAllFilters();
         }
 
-        private async Task LoadInitialData()
+        public async Task<bool> LoadDataAsync()
         {
-            StatusMessage = "Загрузка данных...";
-
-            var wantedTask = _databaseService.GetWantedPersonsAsync();
-            var watchlistTask = _databaseService.GetWatchlistPersonsAsync();
-            var crossingsTask = _databaseService.GetAllCrossingsAsync();
-            var purposesTask = _databaseService.GetDistinctValuesAsync("crossings", "purpose");
-            var destinationsTask = _databaseService.GetDistinctValuesAsync("crossings", "destination_town");
-            var makesTask = _databaseService.GetDistinctValuesAsync("vehicles", "make");
-            var citizenshipsTask = _databaseService.GetDistinctValuesAsync("persons", "citizenship");
-
-            await Task.WhenAll(wantedTask, watchlistTask, crossingsTask, purposesTask,
-                               destinationsTask, makesTask, citizenshipsTask);
-
-            var wantedPersons = (await wantedTask).ToList();
-            var watchlistPersons = (await watchlistTask).ToList();
-            var crossings = (await crossingsTask).ToList();
-
-            Application.Current.Dispatcher.Invoke(() =>
+            try
             {
-                AllCrossings.Clear();
-                foreach (var crossing in crossings)
-                {
-                    if (!crossing.IsDeleted)
-                    {
-                        var fullNameParts = crossing.FullName.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
-                        var lastName = fullNameParts.Length > 0 ? fullNameParts[0] : "";
-                        var firstName = fullNameParts.Length > 1 ? fullNameParts[1] : "";
+                StatusMessage = "Загрузка данных...";
 
-                        crossing.IsOnWantedList = wantedPersons.Any(wp =>
-                            wp.LastName.Equals(lastName, StringComparison.OrdinalIgnoreCase) &&
-                            wp.FirstName.Equals(firstName, StringComparison.OrdinalIgnoreCase) &&
-                            wp.Dob == crossing.PersonDob);
+                var wantedTask = _databaseService.GetWantedPersonsAsync();
+                var watchlistTask = _databaseService.GetWatchlistPersonsAsync();
+                var crossingsTask = _databaseService.GetAllCrossingsAsync();
+                var purposesTask = _databaseService.GetDistinctValuesAsync("crossings", "purpose");
+                var destinationsTask = _databaseService.GetDistinctValuesAsync("crossings", "destination_town");
+                var makesTask = _databaseService.GetDistinctValuesAsync("vehicles", "make");
+                var citizenshipsTask = _databaseService.GetDistinctValuesAsync("persons", "citizenship");
 
-                        if (!crossing.IsOnWantedList)
-                        {
-                            crossing.IsOnWatchlist = watchlistPersons.Any(wlp =>
-                                wlp.LastName.Equals(lastName, StringComparison.OrdinalIgnoreCase) &&
-                                wlp.FirstName.Equals(firstName, StringComparison.OrdinalIgnoreCase) &&
-                                wlp.Dob == crossing.PersonDob);
-                        }
-                    }
-                    AllCrossings.Add(crossing);
-                }
+                await Task.WhenAll(wantedTask, watchlistTask, crossingsTask, purposesTask,
+                                   destinationsTask, makesTask, citizenshipsTask);
 
+                var wantedPersons = (await wantedTask).ToList();
+                var watchlistPersons = (await watchlistTask).ToList();
+                var crossings = (await crossingsTask).ToList();
                 var purposes = await purposesTask;
-                AllPurposes.Clear();
-                AllPurposes.Add("ВСЕ");
-                foreach (var p in purposes) AllPurposes.Add(p);
-
                 var citizenships = await citizenshipsTask;
-                AllCitizenships.Clear();
-                AllCitizenships.Add("ВСЕ");
-                foreach (var c in citizenships) AllCitizenships.Add(c);
-
                 var destinations = await destinationsTask;
-                AllDestinations.Clear();
-                foreach (var d in destinations) AllDestinations.Add(d);
-
                 var makes = await makesTask;
-                AllVehicleMakes.Clear();
-                foreach (var m in makes) AllVehicleMakes.Add(m);
 
-                FilterCitizenship = "ВСЕ";
-                FilterPurpose = "ВСЕ";
-            });
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    AllCrossings.Clear();
+                    foreach (var crossing in crossings)
+                    {
+                        if (!crossing.IsDeleted)
+                        {
+                            var fullNameParts = crossing.FullName.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
+                            var lastName = fullNameParts.Length > 0 ? fullNameParts[0] : "";
+                            var firstName = fullNameParts.Length > 1 ? fullNameParts[1] : "";
 
-            await UpdateAllDashboardStats();
+                            crossing.IsOnWantedList = wantedPersons.Any(wp =>
+                                wp.LastName.Equals(lastName, StringComparison.OrdinalIgnoreCase) &&
+                                wp.FirstName.Equals(firstName, StringComparison.OrdinalIgnoreCase) &&
+                                wp.Dob == crossing.PersonDob);
 
-            StatusMessage = $"Загружено {AllCrossings.Count(c => !c.IsDeleted)} активных записей.";
+                            if (!crossing.IsOnWantedList)
+                            {
+                                crossing.IsOnWatchlist = watchlistPersons.Any(wlp =>
+                                    wlp.LastName.Equals(lastName, StringComparison.OrdinalIgnoreCase) &&
+                                    wlp.FirstName.Equals(firstName, StringComparison.OrdinalIgnoreCase) &&
+                                    wlp.Dob == crossing.PersonDob);
+                            }
+                        }
+                        AllCrossings.Add(crossing);
+                    }
+
+                    AllPurposes.Clear();
+                    AllPurposes.Add("ВСЕ");
+                    foreach (var p in purposes) AllPurposes.Add(p);
+
+                    AllCitizenships.Clear();
+                    AllCitizenships.Add("ВСЕ");
+                    foreach (var c in citizenships) AllCitizenships.Add(c);
+
+                    AllDestinations.Clear();
+                    foreach (var d in destinations) AllDestinations.Add(d);
+
+                    AllVehicleMakes.Clear();
+                    foreach (var m in makes) AllVehicleMakes.Add(m);
+
+                    FilterCitizenship = "ВСЕ";
+                    FilterPurpose = "ВСЕ";
+                });
+
+                await UpdateAllDashboardStats();
+
+                StatusMessage = $"Загружено {AllCrossings.Count(c => !c.IsDeleted)} активных записей.";
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Application.Current.Dispatcher.Invoke(() =>
+                {
+                    MessageBox.Show($"Не удалось загрузить начальные данные: {ex.Message}\n\n{ex.StackTrace}", "Ошибка загрузки данных", MessageBoxButton.OK, MessageBoxImage.Error);
+                    StatusMessage = "Ошибка загрузки данных.";
+                });
+                return false;
+            }
+        }
+
+        [RelayCommand]
+        private async Task RefreshData()
+        {
+            await LoadDataAsync();
         }
 
         #region Main Commands
@@ -411,7 +420,7 @@ namespace CheckpointApp.ViewModels
                     await _databaseService.AddGoodsAsync(goodsToSave);
                 }
 
-                await LoadInitialData();
+                await LoadDataAsync();
                 InitializeNewEntry();
                 StatusMessage = $"Пересечение ID: {newCrossingId} успешно сохранено.";
 
@@ -427,12 +436,6 @@ namespace CheckpointApp.ViewModels
         private void ClearForm()
         {
             InitializeNewEntry();
-        }
-
-        [RelayCommand]
-        private async Task RefreshData()
-        {
-            await LoadInitialData();
         }
 
         [RelayCommand]
@@ -458,12 +461,12 @@ namespace CheckpointApp.ViewModels
             {
                 await _databaseService.MarkCrossingAsDeletedAsync(SelectedCrossing.ID);
                 StatusMessage = $"Запись ID: {SelectedCrossing.ID} помечена как ошибочная.";
-                await LoadInitialData();
+                await LoadDataAsync();
             }
         }
         #endregion
 
-        #region Context Menu and Filtering Commands (Правки №2, №3, №5)
+        #region Context Menu and Filtering Commands
         [RelayCommand]
         private void ShowPersonHistory()
         {
@@ -509,7 +512,7 @@ namespace CheckpointApp.ViewModels
             if (editWindow.ShowDialog() == true)
             {
                 StatusMessage = "Данные человека обновлены. Обновление журнала...";
-                await LoadInitialData();
+                await LoadDataAsync();
             }
         }
 
@@ -523,7 +526,7 @@ namespace CheckpointApp.ViewModels
         }
         #endregion
 
-        #region Proactive Security Check Command (Правка №6)
+        #region Proactive Security Check Command
         [RelayCommand]
         private async Task ProactiveSecurityCheck()
         {
@@ -538,7 +541,7 @@ namespace CheckpointApp.ViewModels
             CurrentPerson.Dob = CurrentPersonDob.Value.ToString("dd.MM.yyyy");
 
             StatusMessage = "Выполняется проверка по базам...";
-            var result = await _securityService.PerformChecksAsync(CurrentPerson, true); // `true` for proactive check
+            var result = await _securityService.PerformChecksAsync(CurrentPerson, true);
             StatusMessage = "Проверка завершена.";
 
             if (result.IsOnWantedList)
@@ -816,3 +819,4 @@ namespace CheckpointApp.ViewModels
         #endregion
     }
 }
+

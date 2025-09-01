@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:viewmodels="clr-namespace:CheckpointApp.ViewModels"
         mc:Ignorable="d"
-        d:DataContext="{d:DesignInstance Type=viewmodels:EditPersonViewModel, IsDesignTimeCreatable=False}"
+        d:DataContext="{d:DesignInstance Type={x:Type viewmodels:EditPersonViewModel}, IsDesignTimeCreatable=False}"
         Title="Редактирование личных данных"
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="CenterOwner"
@@ -59,3 +59,4 @@
 		</StackPanel>
 	</Grid>
 </Window>
+
