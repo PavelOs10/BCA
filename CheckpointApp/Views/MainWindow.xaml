@@ -90,9 +90,9 @@
             <Border Grid.Row="0" Margin="5" Padding="5" BorderBrush="LightGray" BorderThickness="1">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" Orientation="Horizontal">
@@ -115,7 +115,7 @@
                         <TextBlock Text="тс" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <Button Grid.Column="1" Command="{Binding PreliminaryCheckCommand}" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="10, 2" FontWeight="Bold" ToolTip="Проверить введенные данные по спискам без сохранения">
+                    <Button Grid.Column="1" Command="{Binding ProactiveSecurityCheckCommand}" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="10, 2" FontWeight="Bold" ToolTip="Проверить введенные данные по спискам без сохранения">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Text="ПРЕДВАРИТЕЛЬНАЯ ПРОВЕРКА"/>
                         </StackPanel>
@@ -211,12 +211,12 @@
                     <ListView.ContextMenu>
                         <ContextMenu>
                             <MenuItem Header="Редактировать личные данные" Command="{Binding EditPersonCommand}"/>
-                            <MenuItem Header="Посмотреть историю пересечений" Command="{Binding ViewPersonHistoryCommand}"/>
+                            <MenuItem Header="Посмотреть историю пересечений" Command="{Binding ShowPersonHistoryCommand}"/>
                         </ContextMenu>
                     </ListView.ContextMenu>
                     <i:Interaction.Triggers>
                         <i:EventTrigger EventName="MouseDoubleClick">
-                            <i:InvokeCommandAction Command="{Binding SelectCrossingCommand}" />
+                            <i:InvokeCommandAction Command="{Binding DoubleClickOnCrossingCommand}" />
                         </i:EventTrigger>
                     </i:Interaction.Triggers>
                     <ListView.View>

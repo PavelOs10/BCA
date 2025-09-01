@@ -3,60 +3,59 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:CheckpointApp.Views"
+        xmlns:viewmodels="clr-namespace:CheckpointApp.ViewModels"
         mc:Ignorable="d"
-        Title="Ðåäàêòèðîâàíèå ëè÷íûõ äàííûõ" Height="450" Width="500"
+        d:DataContext="{d:DesignInstance Type=viewmodels:EditPersonViewModel, IsDesignTimeCreatable=False}"
+        Title="Ð ÐµÐ´Ð°ÐºÑ‚Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð¸Ðµ Ð»Ð¸Ñ‡Ð½Ñ‹Ñ… Ð´Ð°Ð½Ð½Ñ‹Ñ…"
+        SizeToContent="WidthAndHeight"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
-    <Grid Margin="15">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+	<Grid Margin="15">
+		<Grid.RowDefinitions>
+			<RowDefinition Height="Auto"/>
+			<RowDefinition Height="*"/>
+			<RowDefinition Height="Auto"/>
+		</Grid.RowDefinitions>
 
-        <TextBlock Grid.Row="0" FontSize="16" FontWeight="Bold" Margin="0,0,0,15">
-            <Run Text="Ðåäàêòèðîâàíèå äîñüå äëÿ ïàñïîðòà:"/>
-            <Run Text="{Binding PersonToEdit.PassportData}" Foreground="DarkBlue"/>
-        </TextBlock>
+		<TextBlock Grid.Row="0" Text="Ð ÐµÐ´Ð°ÐºÑ‚Ð¸Ñ€Ð¾Ð²Ð°Ð½Ð¸Ðµ Ð´Ð°Ð½Ð½Ñ‹Ñ…" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
 
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="Auto"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
+		<Grid Grid.Row="1">
+			<Grid.ColumnDefinitions>
+				<ColumnDefinition Width="Auto"/>
+				<ColumnDefinition Width="300"/>
+			</Grid.ColumnDefinitions>
+			<Grid.RowDefinitions>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="Auto"/>
+				<RowDefinition Height="*"/>
+			</Grid.RowDefinitions>
 
-            <Label Grid.Row="0" Grid.Column="0" Content="Ôàìèëèÿ:" VerticalAlignment="Center"/>
-            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding PersonToEdit.LastName}" Margin="5" VerticalAlignment="Center"/>
+			<Label Grid.Row="0" Grid.Column="0" Content="Ð¤Ð°Ð¼Ð¸Ð»Ð¸Ñ:" VerticalAlignment="Center" Margin="5"/>
+			<TextBox Grid.Row="0" Grid.Column="1" Text="{Binding PersonToEdit.LastName, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5"/>
 
-            <Label Grid.Row="1" Grid.Column="0" Content="Èìÿ:" VerticalAlignment="Center"/>
-            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding PersonToEdit.FirstName}" Margin="5" VerticalAlignment="Center"/>
+			<Label Grid.Row="1" Grid.Column="0" Content="Ð˜Ð¼Ñ:" VerticalAlignment="Center" Margin="5"/>
+			<TextBox Grid.Row="1" Grid.Column="1" Text="{Binding PersonToEdit.FirstName, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5"/>
 
-            <Label Grid.Row="2" Grid.Column="0" Content="Îò÷åñòâî:" VerticalAlignment="Center"/>
-            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding PersonToEdit.Patronymic}" Margin="5" VerticalAlignment="Center"/>
+			<Label Grid.Row="2" Grid.Column="0" Content="ÐžÑ‚Ñ‡ÐµÑÑ‚Ð²Ð¾:" VerticalAlignment="Center" Margin="5"/>
+			<TextBox Grid.Row="2" Grid.Column="1" Text="{Binding PersonToEdit.Patronymic, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5"/>
 
-            <Label Grid.Row="3" Grid.Column="0" Content="Äàòà ðîæäåíèÿ:" VerticalAlignment="Center"/>
-            <DatePicker Grid.Row="3" Grid.Column="1" SelectedDate="{Binding PersonDob}" Margin="5" VerticalAlignment="Center"/>
+			<Label Grid.Row="3" Grid.Column="0" Content="Ð”Ð°Ñ‚Ð° Ñ€Ð¾Ð¶Ð´ÐµÐ½Ð¸Ñ:" VerticalAlignment="Center" Margin="5"/>
+			<DatePicker Grid.Row="3" Grid.Column="1" SelectedDate="{Binding PersonDob}" VerticalAlignment="Center" Margin="5"/>
 
-            <Label Grid.Row="4" Grid.Column="0" Content="Ãðàæäàíñòâî:" VerticalAlignment="Center"/>
-            <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding PersonToEdit.Citizenship}" Margin="5" VerticalAlignment="Center"/>
+			<Label Grid.Row="4" Grid.Column="0" Content="Ð“Ñ€Ð°Ð¶Ð´Ð°Ð½ÑÑ‚Ð²Ð¾:" VerticalAlignment="Center" Margin="5"/>
+			<TextBox Grid.Row="4" Grid.Column="1" Text="{Binding PersonToEdit.Citizenship, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5"/>
 
-            <Label Grid.Row="5" Grid.Column="0" Content="Ïðèìå÷àíèÿ:" VerticalAlignment="Top" Margin="0,5,0,0"/>
-            <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding PersonToEdit.Notes}" Margin="5" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto"/>
-        </Grid>
+			<Label Grid.Row="5" Grid.Column="0" Content="ÐŸÑ€Ð¸Ð¼ÐµÑ‡Ð°Ð½Ð¸Ñ:" VerticalAlignment="Top" Margin="5"/>
+			<TextBox Grid.Row="5" Grid.Column="1" Text="{Binding PersonToEdit.Notes, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5" Height="80" TextWrapping="Wrap" AcceptsReturn="True"/>
+		</Grid>
 
-        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-            <Button Content="Ñîõðàíèòü" Width="120" IsDefault="True" Command="{Binding SaveChangesCommand}" Margin="5"/>
-            <Button Content="Îòìåíà" Width="100" IsCancel="True" Margin="5"/>
-        </StackPanel>
-
-    </Grid>
+		<StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+			<Button Content="Ð¡Ð¾Ñ…Ñ€Ð°Ð½Ð¸Ñ‚ÑŒ" IsDefault="True" Command="{Binding SaveChangesCommand}" Width="100" Margin="5"/>
+			<Button Content="ÐžÑ‚Ð¼ÐµÐ½Ð°" IsCancel="True" Width="100" Margin="5"/>
+		</StackPanel>
+	</Grid>
 </Window>
