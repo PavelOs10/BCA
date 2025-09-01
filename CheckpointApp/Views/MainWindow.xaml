@@ -7,8 +7,8 @@
         xmlns:i="http://schemas.microsoft.com/xaml/behaviors"
         xmlns:viewmodels="clr-namespace:CheckpointApp.ViewModels"
         xmlns:helpers="clr-namespace:CheckpointApp.Helpers"
-        d:DataContext="{d:DesignInstance Type=viewmodels:MainViewModel}"
         mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=viewmodels:MainViewModel, IsDesignTimeCreatable=False}"
         Title="{Binding WindowTitle}" Height="800" Width="1280"
         WindowStartupLocation="CenterScreen">
 
@@ -44,7 +44,6 @@
                 <MenuItem Header="_Запрос на лицо..." Command="{Binding GeneratePersonReportCommand}"/>
                 <MenuItem Header="_Экспорт в Excel..." Command="{Binding ExportToExcelCommand}"/>
                 <Separator/>
-                <!-- НОВЫЙ ПУНКТ МЕНЮ: Смена оператора -->
                 <MenuItem Header="_Сменить оператора" Command="{Binding SwitchUserCommand}"/>
                 <MenuItem Header="_Выход" Command="{Binding ExitCommand}"/>
             </MenuItem>
@@ -93,6 +92,7 @@
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" Orientation="Horizontal">
@@ -115,7 +115,13 @@
                         <TextBlock Text="тс" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Grid.Column="1" Command="{Binding PreliminaryCheckCommand}" HorizontalAlignment="Center" VerticalAlignment="Center" Padding="10, 2" FontWeight="Bold" ToolTip="Проверить введенные данные по спискам без сохранения">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="ПРЕДВАРИТЕЛЬНАЯ ПРОВЕРКА"/>
+                        </StackPanel>
+                    </Button>
+
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
                         <Separator Margin="10,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
                         <TextBlock Text="В погранзоне:" VerticalAlignment="Center" FontWeight="Bold"/>
                         <TextBlock Text="{Binding PersonsInZoneCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center" Foreground="Blue"/>
@@ -175,9 +181,9 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel Grid.Column="0" Margin="5">
                                 <GroupBox Header="Направление">
-                                    <StackPanel Orientation="Horizontal" Margin="5">
+                                    <StackPanel Orientation="Horizontal" Margin="15,5,5,5">
                                         <RadioButton Content="Въезд" IsChecked="{Binding IsDirectionIn}" Margin="5"/>
-                                        <RadioButton Content="Выезд" IsChecked="{Binding IsDirectionOut}" Margin="5"/>
+                                        <RadioButton Content="Выезд" IsChecked="{Binding IsDirectionOut}" Margin="25,5,5,5"/>
                                     </StackPanel>
                                 </GroupBox>
                                 <Label Content="Тип пересечения:"/>
@@ -202,6 +208,12 @@
                 <!-- ЖУРНАЛ ПЕРЕСЕЧЕНИЙ -->
                 <ListView Grid.Row="1" Margin="5" ItemsSource="{Binding CrossingsView}" SelectedItem="{Binding SelectedCrossing}"
                           ItemContainerStyle="{StaticResource CrossingListViewItemStyle}">
+                    <ListView.ContextMenu>
+                        <ContextMenu>
+                            <MenuItem Header="Редактировать личные данные" Command="{Binding EditPersonCommand}"/>
+                            <MenuItem Header="Посмотреть историю пересечений" Command="{Binding ViewPersonHistoryCommand}"/>
+                        </ContextMenu>
+                    </ListView.ContextMenu>
                     <i:Interaction.Triggers>
                         <i:EventTrigger EventName="MouseDoubleClick">
                             <i:InvokeCommandAction Command="{Binding SelectCrossingCommand}" />
@@ -227,3 +239,4 @@
         </Grid>
     </DockPanel>
 </Window>
+

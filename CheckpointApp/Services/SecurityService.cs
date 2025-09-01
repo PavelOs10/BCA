@@ -11,10 +11,12 @@ namespace CheckpointApp.Services
 {
     public class SecurityCheckResult
     {
-        public bool IsAllowed { get; set; }
-        // --- ИСПРАВЛЕНИЕ: Инициализация свойства для избежания ошибки non-nullable ---
+        public bool IsAllowed { get; set; } = true;
         public string Message { get; set; } = string.Empty;
-        public bool IsWarning { get; set; } // True for watchlist, false for wanted list
+        public bool IsWarning { get; set; }
+        // --- ИЗМЕНЕНИЕ: Добавлены флаги для проактивной проверки (правка №6) ---
+        public bool IsOnWantedList { get; set; } = false;
+        public bool IsOnWatchlist { get; set; } = false;
     }
 
     public class SecurityService
@@ -26,33 +28,36 @@ namespace CheckpointApp.Services
             _databaseService = databaseService;
         }
 
-        public async Task<SecurityCheckResult> PerformChecksAsync(Person personToCheck)
+        public async Task<SecurityCheckResult> PerformChecksAsync(Person personToCheck, bool isProactive = false)
         {
-            // 1. Проверка по списку "Розыск"
             var wantedCheckResult = await CheckWantedListAsync(personToCheck);
             if (!wantedCheckResult.IsAllowed)
             {
-                // Если найдено совпадение в списке розыска, показываем диалог и возвращаем результат
+                // Если это проактивная проверка, не показываем диалог, а просто возвращаем результат
+                if (isProactive)
+                {
+                    return new SecurityCheckResult { IsAllowed = false, IsOnWantedList = true };
+                }
+
                 var continueSave = MessageBox.Show(wantedCheckResult.Message, "ЛИЦО В РОЗЫСКЕ / СОВПАДЕНИЯ",
                                                    MessageBoxButton.YesNo, MessageBoxImage.Error);
-
-                return new SecurityCheckResult { IsAllowed = continueSave == MessageBoxResult.Yes, IsWarning = false };
+                return new SecurityCheckResult { IsAllowed = continueSave == MessageBoxResult.Yes, IsWarning = false, IsOnWantedList = true };
             }
 
-            // 2. Проверка по "Списку наблюдения"
             var watchlistCheckResult = await CheckWatchlistAsync(personToCheck);
             if (!watchlistCheckResult.IsAllowed)
             {
+                if (isProactive)
+                {
+                    return new SecurityCheckResult { IsAllowed = false, IsOnWatchlist = true };
+                }
+
                 var continueSave = MessageBox.Show(watchlistCheckResult.Message, "Лицо в списке наблюдения",
                                                    MessageBoxButton.YesNo, MessageBoxImage.Warning);
-
-                // Логируем действие с уровнем "warning" (здесь можно добавить логирование в файл или БД)
                 System.Diagnostics.Debug.WriteLine($"WARNING: Operator confirmed saving for a person on the watchlist: {personToCheck.LastName}");
-
-                return new SecurityCheckResult { IsAllowed = continueSave == MessageBoxResult.Yes, IsWarning = true };
+                return new SecurityCheckResult { IsAllowed = continueSave == MessageBoxResult.Yes, IsWarning = true, IsOnWatchlist = true };
             }
 
-            // Если проверок не пройдено
             return new SecurityCheckResult { IsAllowed = true };
         }
 
@@ -65,7 +70,6 @@ namespace CheckpointApp.Services
             var normalizedFirstName = NameNormalizer.NormalizeName(personToCheck.FirstName);
             var normalizedPatronymic = NameNormalizer.NormalizeName(personToCheck.Patronymic ?? "");
 
-            // --- Точное совпадение ---
             var exactMatch = wantedPersons.FirstOrDefault(wp =>
                 wp.LastName.ToUpper() == personToCheck.LastName.ToUpper() &&
                 wp.FirstName.ToUpper() == personToCheck.FirstName.ToUpper() &&
@@ -76,7 +80,7 @@ namespace CheckpointApp.Services
             {
                 matches.Add(BuildMatchMessage("!!! ПОЛНОЕ СОВПАДЕНИЕ ДАННЫХ !!!", exactMatch));
             }
-            else // --- Частичное (нечеткое) совпадение ---
+            else
             {
                 foreach (var wp in wantedPersons)
                 {
@@ -84,16 +88,12 @@ namespace CheckpointApp.Services
                     var dbNormFirstName = NameNormalizer.NormalizeName(wp.FirstName);
                     var dbNormPatronymic = NameNormalizer.NormalizeName(wp.Patronymic ?? "");
 
-                    // Критерий 1: Совпадение Фамилии и Имени
                     if (dbNormLastName == normalizedLastName && dbNormFirstName == normalizedFirstName)
                         matches.Add(BuildMatchMessage("Совпадение Фамилии и Имени", wp));
-                    // Критерий 2: Совпадение ФИО
                     else if (dbNormLastName == normalizedLastName && dbNormFirstName == normalizedFirstName && dbNormPatronymic == normalizedPatronymic)
                         matches.Add(BuildMatchMessage("Совпадение ФИО", wp));
-                    // Критерий 3: Совпадение Имени и Отчества
                     else if (dbNormFirstName == normalizedFirstName && dbNormPatronymic == normalizedPatronymic && !string.IsNullOrEmpty(normalizedPatronymic))
                         matches.Add(BuildMatchMessage("Совпадение Имени и Отчества", wp));
-                    // Критерий 4: Совпадение Фамилии и Даты рождения
                     else if (dbNormLastName == normalizedLastName && wp.Dob == personToCheck.Dob)
                         matches.Add(BuildMatchMessage("Совпадение Фамилии и Даты рождения", wp));
                 }

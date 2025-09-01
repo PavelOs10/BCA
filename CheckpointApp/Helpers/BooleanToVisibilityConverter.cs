@@ -5,25 +5,29 @@ using System.Windows.Data;
 
 namespace CheckpointApp.Helpers
 {
-    /// <summary>
-    /// Конвертирует булево значение (true/false) в значение Visibility (Visible/Collapsed).
-    /// Используется в XAML для скрытия элементов на основе условий в ViewModel.
-    /// </summary>
+    [ValueConversion(typeof(bool), typeof(Visibility))]
     public class BooleanToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            if (value is bool boolValue)
+            bool flag = false;
+            if (value is bool b)
             {
-                return boolValue ? Visibility.Visible : Visibility.Collapsed;
+                flag = b;
             }
-            return Visibility.Collapsed;
+
+            if (parameter is string s && s.Equals("Invert", StringComparison.OrdinalIgnoreCase))
+            {
+                flag = !flag;
+            }
+
+            return flag ? Visibility.Visible : Visibility.Collapsed;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         {
-            // Обратное преобразование не требуется для данного приложения
             throw new NotImplementedException();
         }
     }
 }
+

@@ -198,6 +198,7 @@ namespace CheckpointApp.DataAccess
                     p.last_name || ' ' || p.first_name || ' ' || IFNULL(p.patronymic, '') AS FullName,
                     p.dob as PersonDob,
                     p.passport_data as PersonPassport,
+                    p.citizenship AS Citizenship,
                     IFNULL(v.make || '/' || v.license_plate, '') AS VehicleInfo,
                     u.username AS OperatorUsername
                 FROM crossings c
@@ -208,7 +209,6 @@ namespace CheckpointApp.DataAccess
             return await connection.QueryAsync<Crossing>(sql);
         }
 
-        // --- НОВЫЙ МЕТОД: Для отчета по лицу ---
         public async Task<IEnumerable<Crossing>> GetAllCrossingsByPersonIdAsync(int personId)
         {
             using var connection = GetConnection();
@@ -327,6 +327,24 @@ namespace CheckpointApp.DataAccess
             return await connection.QuerySingleOrDefaultAsync<Person>(sql, new { PassportData = passportData.ToUpper() });
         }
 
+        public async Task<Person?> GetPersonByIdAsync(int personId)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                SELECT
+                    id AS Id,
+                    last_name AS LastName,
+                    first_name AS FirstName,
+                    patronymic AS Patronymic,
+                    dob AS Dob,
+                    citizenship AS Citizenship,
+                    passport_data AS PassportData,
+                    notes AS Notes
+                FROM persons
+                WHERE id = @PersonId";
+            return await connection.QuerySingleOrDefaultAsync<Person>(sql, new { PersonId = personId });
+        }
+
         public async Task<IEnumerable<Person>> GetAllPersonsAsync()
         {
             using var connection = GetConnection();
@@ -358,7 +376,6 @@ namespace CheckpointApp.DataAccess
             return await connection.QuerySingleOrDefaultAsync<Vehicle>(sql, new { LicensePlate = licensePlate.ToUpper() });
         }
 
-        // --- НОВЫЙ МЕТОД: Для отчета по лицу ---
         public async Task<IEnumerable<Vehicle>> GetVehiclesByPersonIdAsync(int personId)
         {
             using var connection = GetConnection();
@@ -380,6 +397,23 @@ namespace CheckpointApp.DataAccess
                 VALUES (@LastName, @FirstName, @Patronymic, @Dob, @Citizenship, @PassportData, @Notes)
                 RETURNING id;";
             return await connection.ExecuteScalarAsync<int>(sql, person);
+        }
+
+        // --- НОВЫЙ МЕТОД: Для правки №3 ---
+        public async Task<bool> UpdatePersonAsync(Person person)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                UPDATE persons SET
+                    last_name = @LastName,
+                    first_name = @FirstName,
+                    patronymic = @Patronymic,
+                    dob = @Dob,
+                    citizenship = @Citizenship,
+                    notes = @Notes
+                WHERE id = @Id";
+            var affectedRows = await connection.ExecuteAsync(sql, person);
+            return affectedRows > 0;
         }
 
         public async Task<bool> UpdatePersonNotesAsync(int personId, string? notes)
@@ -456,7 +490,6 @@ namespace CheckpointApp.DataAccess
             });
         }
 
-        // --- НОВЫЙ МЕТОД: Для отчета по лицу ---
         public async Task<IEnumerable<GoodReportItem>> GetGoodsSummaryByPersonIdAsync(int personId)
         {
             using var connection = GetConnection();
@@ -606,7 +639,6 @@ namespace CheckpointApp.DataAccess
             return await connection.QueryAsync<PersonInZone>(sql);
         }
 
-        // --- НОВЫЙ МЕТОД: Для статистики на панели мониторинга ---
         public async Task<InZoneStats> GetInZoneStatsAsync()
         {
             using var connection = GetConnection();

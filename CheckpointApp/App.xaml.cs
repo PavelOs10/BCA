@@ -1,5 +1,5 @@
-﻿using System.Linq;
-using System.Windows;
+﻿using System.Windows;
+using System.Threading.Tasks;
 using CheckpointApp.DataAccess;
 using CheckpointApp.ViewModels;
 using CheckpointApp.Views;
@@ -11,37 +11,19 @@ namespace CheckpointApp
     /// </summary>
     public partial class App : Application
     {
-        private readonly DatabaseService _databaseService;
-
-        public App()
-        {
-            _databaseService = new DatabaseService();
-        }
-
-        /// <summary>
-        /// Логика, выполняемая при запуске приложения.
-        /// </summary>
         protected override async void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
 
-            // Устанавливаем режим завершения работы приложения вручную,
-            // чтобы оно не закрылось после первого окна.
-            ShutdownMode = ShutdownMode.OnExplicitShutdown;
+            var databaseService = new DatabaseService();
+            databaseService.InitializeDatabase();
 
-            // Проверяем, есть ли в базе данных хотя бы один пользователь.
-            var userCount = await _databaseService.GetUserCountAsync();
-
-            // Если пользователей нет (первый запуск), открываем окно
-            // для создания учетной записи администратора.
-            if (userCount == 0)
+            if (await databaseService.GetUserCountAsync() == 0)
             {
                 var firstAdminWindow = new FirstAdminWindow
                 {
-                    DataContext = new FirstAdminViewModel(_databaseService)
+                    DataContext = new FirstAdminViewModel(databaseService)
                 };
-
-                // Если администратор не был создан, завершаем работу приложения.
                 if (firstAdminWindow.ShowDialog() != true)
                 {
                     Shutdown();
@@ -49,45 +31,42 @@ namespace CheckpointApp
                 }
             }
 
-            // --- ИЗМЕНЕНИЕ: Запускаем бесконечный цикл аутентификации ---
-            // Этот цикл позволит нам возвращаться к окну входа после смены пользователя.
             while (true)
             {
-                var loginViewModel = new LoginViewModel(_databaseService);
+                var loginViewModel = new LoginViewModel(databaseService);
                 var loginWindow = new LoginWindow
                 {
                     DataContext = loginViewModel
                 };
 
-                // Показываем окно входа как диалоговое.
-                // Если пользователь закрыл его, не авторизовавшись, выходим из цикла и завершаем приложение.
                 if (loginWindow.ShowDialog() != true)
                 {
-                    break; // Выход из цикла
+                    break;
                 }
 
-                // Если вход успешен, создаем и показываем главное окно.
-                var mainViewModel = new MainViewModel(_databaseService, loginViewModel.LoggedInUser!);
-                var mainWindow = new Views.MainWindow
+                if (loginViewModel.LoggedInUser == null)
+                {
+                    MessageBox.Show("Произошла ошибка аутентификации.", "Ошибка", MessageBoxButton.OK, MessageBoxImage.Error);
+                    break;
+                }
+
+                var mainViewModel = new MainViewModel(databaseService, loginViewModel.LoggedInUser);
+                var mainWindow = new MainWindow
                 {
                     DataContext = mainViewModel
                 };
 
-                // Назначаем главное окно.
                 Current.MainWindow = mainWindow;
-                mainWindow.ShowDialog(); // Показываем как диалог, чтобы код ждал его закрытия
+                mainWindow.ShowDialog();
 
-                // После закрытия MainWindow проверяем, была ли запрошена смена пользователя.
-                // Если нет, то пользователь просто закрыл программу. Выходим из цикла.
                 if (!mainViewModel.IsSwitchingUserRequested)
                 {
-                    break; // Выход из цикла
+                    break;
                 }
-                // Если IsSwitchingUserRequested = true, цикл начнется заново, и появится окно входа.
             }
 
-            // Завершаем работу приложения, когда цикл прерывается.
             Shutdown();
         }
     }
 }
+
