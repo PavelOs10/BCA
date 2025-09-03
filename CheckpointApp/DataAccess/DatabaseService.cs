@@ -209,6 +209,37 @@ namespace CheckpointApp.DataAccess
             return await connection.QueryAsync<Crossing>(sql);
         }
 
+        // --- ИСПРАВЛЕНИЕ 1: Новый метод для получения одного пересечения по ID ---
+        public async Task<Crossing?> GetCrossingByIdAsync(int crossingId)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                SELECT
+                    c.id AS ID,
+                    c.person_id AS PersonId,
+                    c.vehicle_id AS VehicleId,
+                    c.direction AS Direction,
+                    c.purpose AS Purpose,
+                    c.destination_town AS DestinationTown,
+                    c.crossing_type AS CrossingType,
+                    c.operator_id AS OperatorId,
+                    c.timestamp AS Timestamp,
+                    c.is_deleted as IsDeleted,
+                    p.last_name || ' ' || p.first_name || ' ' || IFNULL(p.patronymic, '') AS FullName,
+                    p.dob as PersonDob,
+                    p.passport_data as PersonPassport,
+                    p.citizenship AS Citizenship,
+                    IFNULL(v.make || '/' || v.license_plate, '') AS VehicleInfo,
+                    u.username AS OperatorUsername
+                FROM crossings c
+                JOIN persons p ON c.person_id = p.id
+                LEFT JOIN vehicles v ON c.vehicle_id = v.id
+                JOIN users u ON c.operator_id = u.id
+                WHERE c.id = @CrossingId";
+            return await connection.QuerySingleOrDefaultAsync<Crossing>(sql, new { CrossingId = crossingId });
+        }
+
+
         public async Task<IEnumerable<Crossing>> GetAllCrossingsByPersonIdAsync(int personId)
         {
             using var connection = GetConnection();
@@ -399,10 +430,11 @@ namespace CheckpointApp.DataAccess
             return await connection.ExecuteScalarAsync<int>(sql, person);
         }
 
-        // --- НОВЫЙ МЕТОД: Для правки №3 ---
+
         public async Task<bool> UpdatePersonAsync(Person person)
         {
             using var connection = GetConnection();
+            // --- ИСПРАВЛЕНИЕ 4: Добавлено поле passport_data в запрос на обновление ---
             var sql = @"
                 UPDATE persons SET
                     last_name = @LastName,
@@ -410,6 +442,7 @@ namespace CheckpointApp.DataAccess
                     patronymic = @Patronymic,
                     dob = @Dob,
                     citizenship = @Citizenship,
+                    passport_data = @PassportData,
                     notes = @Notes
                 WHERE id = @Id";
             var affectedRows = await connection.ExecuteAsync(sql, person);

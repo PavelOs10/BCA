@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -146,36 +147,47 @@ namespace CheckpointApp.ViewModels
                 return false;
             }
 
-            // --- ИЗМЕНЕНИЕ: Расширенная логика живого поиска ---
+            // --- ИСПРАВЛЕНИЕ: Логика "живого" поиска по конкретным полям ---
             var lastNameFilter = CurrentPerson.LastName?.Trim();
             var firstNameFilter = CurrentPerson.FirstName?.Trim();
             var patronymicFilter = CurrentPerson.Patronymic?.Trim();
             var citizenshipFilter = CurrentPerson.Citizenship?.Trim();
             var passportFilter = CurrentPerson.PassportData?.Trim();
 
-            bool baseFilterMatch = true;
-            if (!string.IsNullOrWhiteSpace(lastNameFilter))
-                baseFilterMatch &= crossing.FullName.Contains(lastNameFilter, StringComparison.OrdinalIgnoreCase);
-            if (!string.IsNullOrWhiteSpace(firstNameFilter))
-                baseFilterMatch &= crossing.FullName.Contains(firstNameFilter, StringComparison.OrdinalIgnoreCase);
-            if (!string.IsNullOrWhiteSpace(patronymicFilter))
-                baseFilterMatch &= crossing.FullName.Contains(patronymicFilter, StringComparison.OrdinalIgnoreCase);
-            if (!string.IsNullOrWhiteSpace(citizenshipFilter))
-                baseFilterMatch &= (crossing.Citizenship ?? string.Empty).Contains(citizenshipFilter, StringComparison.OrdinalIgnoreCase);
-            if (!string.IsNullOrWhiteSpace(passportFilter))
-                baseFilterMatch &= crossing.PersonPassport.StartsWith(passportFilter, StringComparison.OrdinalIgnoreCase);
-            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
+            // Разбиваем полное имя из записи журнала на составные части
+            var fullNameParts = crossing.FullName.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
+            var crossingLastName = fullNameParts.Length > 0 ? fullNameParts[0] : "";
+            var crossingFirstName = fullNameParts.Length > 1 ? fullNameParts[1] : "";
+            var crossingPatronymic = fullNameParts.Length > 2 ? fullNameParts[2] : "";
+
+            // Последовательно применяем фильтры для каждого поля. Если хотя бы один не совпадает, запись скрывается.
+            if (!string.IsNullOrWhiteSpace(lastNameFilter) && !crossingLastName.StartsWith(lastNameFilter, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (!string.IsNullOrWhiteSpace(firstNameFilter) && !crossingFirstName.StartsWith(firstNameFilter, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (!string.IsNullOrWhiteSpace(patronymicFilter) && !crossingPatronymic.StartsWith(patronymicFilter, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (!string.IsNullOrWhiteSpace(citizenshipFilter) && !(crossing.Citizenship ?? string.Empty).StartsWith(citizenshipFilter, StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            if (!string.IsNullOrWhiteSpace(passportFilter) && !crossing.PersonPassport.StartsWith(passportFilter, StringComparison.OrdinalIgnoreCase))
+                return false;
+            // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+
 
             if (!string.IsNullOrEmpty(FilterCitizenship) && FilterCitizenship != "ВСЕ")
-                baseFilterMatch &= (crossing.Citizenship ?? "").Equals(FilterCitizenship, StringComparison.OrdinalIgnoreCase);
+                if (!(crossing.Citizenship ?? "").Equals(FilterCitizenship, StringComparison.OrdinalIgnoreCase)) return false;
 
             if (!string.IsNullOrEmpty(FilterPurpose) && FilterPurpose != "ВСЕ")
-                baseFilterMatch &= (crossing.Purpose ?? "").Equals(FilterPurpose, StringComparison.OrdinalIgnoreCase);
+                if (!(crossing.Purpose ?? "").Equals(FilterPurpose, StringComparison.OrdinalIgnoreCase)) return false;
 
             if (!string.IsNullOrEmpty(FilterVehicle))
-                baseFilterMatch &= crossing.VehicleInfo.Contains(FilterVehicle, StringComparison.OrdinalIgnoreCase);
+                if (!crossing.VehicleInfo.Contains(FilterVehicle, StringComparison.OrdinalIgnoreCase)) return false;
 
-            return baseFilterMatch;
+            return true;
         }
 
         #region Property Change Handlers
@@ -379,7 +391,22 @@ namespace CheckpointApp.ViewModels
                 {
                     bool nameMismatch = !person.LastName.Equals(CurrentPerson.LastName, StringComparison.OrdinalIgnoreCase) ||
                                         !person.FirstName.Equals(CurrentPerson.FirstName, StringComparison.OrdinalIgnoreCase);
-                    bool dobMismatch = person.Dob != CurrentPerson.Dob;
+
+                    // --- ИСПРАВЛЕНИЕ 2: Сравниваем даты, а не строки, чтобы избежать ошибок с форматом ---
+                    bool dobMismatch = false;
+                    if (DateTime.TryParseExact(person.Dob, "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dbDob))
+                    {
+                        if (CurrentPersonDob.HasValue)
+                        {
+                            dobMismatch = dbDob.Date != CurrentPersonDob.Value.Date;
+                        }
+                    }
+                    else
+                    {
+                        // Если дата в БД в неверном формате, сравниваем как строки
+                        dobMismatch = person.Dob != CurrentPerson.Dob;
+                    }
+
 
                     if (nameMismatch || dobMismatch)
                     {
@@ -447,7 +474,28 @@ namespace CheckpointApp.ViewModels
                     await _databaseService.AddGoodsAsync(goodsToSave);
                 }
 
-                await LoadDataAsync();
+                // --- ИСПРАВЛЕНИЕ 1: Замена полной перезагрузки на добавление одной записи ---
+                var newCrossingFromDb = await _databaseService.GetCrossingByIdAsync(newCrossingId);
+                if (newCrossingFromDb != null)
+                {
+                    // Проверяем флаги розыска/наблюдения для корректной подсветки
+                    newCrossingFromDb.IsOnWantedList = securityResult.IsOnWantedList;
+                    newCrossingFromDb.IsOnWatchlist = securityResult.IsOnWatchlist;
+
+                    Application.Current.Dispatcher.Invoke(() =>
+                    {
+                        AllCrossings.Insert(0, newCrossingFromDb);
+                    });
+                }
+                // Обновляем выпадающие списки, если были добавлены новые значения
+                if (!string.IsNullOrEmpty(CurrentCrossing.Purpose) && !AllPurposes.Contains(CurrentCrossing.Purpose)) Application.Current.Dispatcher.Invoke(() => AllPurposes.Add(CurrentCrossing.Purpose));
+                if (!string.IsNullOrEmpty(CurrentCrossing.DestinationTown) && !AllDestinations.Contains(CurrentCrossing.DestinationTown)) Application.Current.Dispatcher.Invoke(() => AllDestinations.Add(CurrentCrossing.DestinationTown));
+                if (!string.IsNullOrEmpty(CurrentVehicle.Make) && !AllVehicleMakes.Contains(CurrentVehicle.Make)) Application.Current.Dispatcher.Invoke(() => AllVehicleMakes.Add(CurrentVehicle.Make));
+                if (!string.IsNullOrEmpty(CurrentPerson.Citizenship) && !AllCitizenships.Contains(CurrentPerson.Citizenship)) Application.Current.Dispatcher.Invoke(() => AllCitizenships.Add(CurrentPerson.Citizenship));
+
+                await UpdateAllDashboardStats();
+                // --- КОНЕЦ ИСПРАВЛЕНИЯ 1 ---
+
                 InitializeNewEntry();
                 StatusMessage = $"Пересечение ID: {newCrossingId} успешно сохранено.";
 
@@ -813,9 +861,14 @@ namespace CheckpointApp.ViewModels
                 CurrentPerson = personFromDb;
                 CurrentPerson.PropertyChanged += OnCurrentPersonPropertyChanged;
 
-                if (DateTime.TryParse(personFromDb.Dob, out var dob))
+                // --- ИСПРАВЛЕНИЕ 2 и 3: Использование строгого формата для разбора даты ---
+                if (DateTime.TryParseExact(personFromDb.Dob, "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dob))
                 {
                     CurrentPersonDob = dob;
+                }
+                else
+                {
+                    CurrentPersonDob = null; // Очищаем поле, если дата в БД в неверном формате
                 }
 
                 if (SelectedCrossing.VehicleId.HasValue && !string.IsNullOrWhiteSpace(SelectedCrossing.VehicleInfo) && SelectedCrossing.VehicleInfo.Contains('/'))
@@ -857,3 +910,4 @@ namespace CheckpointApp.ViewModels
         #endregion
     }
 }
+

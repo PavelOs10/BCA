@@ -3,6 +3,7 @@ using CheckpointApp.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using System;
+using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -24,7 +25,8 @@ namespace CheckpointApp.ViewModels
             _databaseService = databaseService;
             _personToEdit = person;
 
-            if (DateTime.TryParse(person.Dob, out var dob))
+            // --- ИСПРАВЛЕНИЕ 2: Использование строгого формата для разбора даты ---
+            if (DateTime.TryParseExact(person.Dob, "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dob))
             {
                 PersonDob = dob;
             }
@@ -33,11 +35,21 @@ namespace CheckpointApp.ViewModels
         [RelayCommand]
         private async Task SaveChanges()
         {
+            // --- ИСПРАВЛЕНИЕ 4: Добавлена проверка паспортных данных ---
             if (string.IsNullOrWhiteSpace(PersonToEdit.LastName) ||
                 string.IsNullOrWhiteSpace(PersonToEdit.FirstName) ||
+                string.IsNullOrWhiteSpace(PersonToEdit.PassportData) ||
                 PersonDob == null)
             {
-                MessageBox.Show("Фамилия, Имя и Дата рождения не могут быть пустыми.", "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show("Фамилия, Имя, Паспортные данные и Дата рождения не могут быть пустыми.", "Ошибка валидации", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            // --- ИСПРАВЛЕНИЕ 4: Проверка, что новый номер паспорта не занят другим человеком ---
+            var existingPerson = await _databaseService.FindPersonByPassportAsync(PersonToEdit.PassportData.ToUpper());
+            if (existingPerson != null && existingPerson.Id != PersonToEdit.Id)
+            {
+                MessageBox.Show("Человек с такими паспортными данными уже существует в базе.", "Ошибка: Дубликат", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
 
@@ -48,6 +60,7 @@ namespace CheckpointApp.ViewModels
             PersonToEdit.FirstName = PersonToEdit.FirstName.ToUpper();
             PersonToEdit.Patronymic = PersonToEdit.Patronymic?.ToUpper();
             PersonToEdit.Citizenship = PersonToEdit.Citizenship?.ToUpper() ?? "";
+            PersonToEdit.PassportData = PersonToEdit.PassportData.ToUpper();
 
             bool success = await _databaseService.UpdatePersonAsync(PersonToEdit);
 

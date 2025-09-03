@@ -10,53 +10,58 @@
         SizeToContent="WidthAndHeight"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
-	<Grid Margin="15">
-		<Grid.RowDefinitions>
-			<RowDefinition Height="Auto"/>
-			<RowDefinition Height="*"/>
-			<RowDefinition Height="Auto"/>
-		</Grid.RowDefinitions>
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
 
-		<TextBlock Grid.Row="0" Text="Редактирование данных" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
+        <TextBlock Grid.Row="0" Text="Редактирование данных" FontSize="16" FontWeight="Bold" Margin="0,0,0,15"/>
 
-		<Grid Grid.Row="1">
-			<Grid.ColumnDefinitions>
-				<ColumnDefinition Width="Auto"/>
-				<ColumnDefinition Width="300"/>
-			</Grid.ColumnDefinitions>
-			<Grid.RowDefinitions>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="Auto"/>
-				<RowDefinition Height="*"/>
-			</Grid.RowDefinitions>
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="300"/>
+            </Grid.ColumnDefinitions>
+            <!-- ~ ~ ~ ИСПРАВЛЕНИЕ 4: Добавлена строка для паспорта ~ ~ ~ -->
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
 
-			<Label Grid.Row="0" Grid.Column="0" Content="Фамилия:" VerticalAlignment="Center" Margin="5"/>
-			<TextBox Grid.Row="0" Grid.Column="1" Text="{Binding PersonToEdit.LastName, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5"/>
+            <Label Grid.Row="0" Grid.Column="0" Content="Фамилия:" VerticalAlignment="Center" Margin="5"/>
+            <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding PersonToEdit.LastName, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5"/>
 
-			<Label Grid.Row="1" Grid.Column="0" Content="Имя:" VerticalAlignment="Center" Margin="5"/>
-			<TextBox Grid.Row="1" Grid.Column="1" Text="{Binding PersonToEdit.FirstName, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5"/>
+            <Label Grid.Row="1" Grid.Column="0" Content="Имя:" VerticalAlignment="Center" Margin="5"/>
+            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding PersonToEdit.FirstName, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5"/>
 
-			<Label Grid.Row="2" Grid.Column="0" Content="Отчество:" VerticalAlignment="Center" Margin="5"/>
-			<TextBox Grid.Row="2" Grid.Column="1" Text="{Binding PersonToEdit.Patronymic, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5"/>
+            <Label Grid.Row="2" Grid.Column="0" Content="Отчество:" VerticalAlignment="Center" Margin="5"/>
+            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding PersonToEdit.Patronymic, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5"/>
 
-			<Label Grid.Row="3" Grid.Column="0" Content="Дата рождения:" VerticalAlignment="Center" Margin="5"/>
-			<DatePicker Grid.Row="3" Grid.Column="1" SelectedDate="{Binding PersonDob}" VerticalAlignment="Center" Margin="5"/>
+            <Label Grid.Row="3" Grid.Column="0" Content="Дата рождения:" VerticalAlignment="Center" Margin="5"/>
+            <DatePicker Grid.Row="3" Grid.Column="1" SelectedDate="{Binding PersonDob}" VerticalAlignment="Center" Margin="5"/>
 
-			<Label Grid.Row="4" Grid.Column="0" Content="Гражданство:" VerticalAlignment="Center" Margin="5"/>
-			<TextBox Grid.Row="4" Grid.Column="1" Text="{Binding PersonToEdit.Citizenship, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5"/>
+            <Label Grid.Row="4" Grid.Column="0" Content="Гражданство:" VerticalAlignment="Center" Margin="5"/>
+            <TextBox Grid.Row="4" Grid.Column="1" Text="{Binding PersonToEdit.Citizenship, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5"/>
 
-			<Label Grid.Row="5" Grid.Column="0" Content="Примечания:" VerticalAlignment="Top" Margin="5"/>
-			<TextBox Grid.Row="5" Grid.Column="1" Text="{Binding PersonToEdit.Notes, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5" Height="80" TextWrapping="Wrap" AcceptsReturn="True"/>
-		</Grid>
+            <!-- ~ ~ ~ ИСПРАВЛЕНИЕ 4: Добавлено поле для редактирования паспорта ~ ~ ~ -->
+            <Label Grid.Row="5" Grid.Column="0" Content="Паспортные данные:" VerticalAlignment="Center" Margin="5"/>
+            <TextBox Grid.Row="5" Grid.Column="1" Text="{Binding PersonToEdit.PassportData, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5"/>
 
-		<StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
-			<Button Content="Сохранить" IsDefault="True" Command="{Binding SaveChangesCommand}" Width="100" Margin="5"/>
-			<Button Content="Отмена" IsCancel="True" Width="100" Margin="5"/>
-		</StackPanel>
-	</Grid>
+            <Label Grid.Row="6" Grid.Column="0" Content="Примечания:" VerticalAlignment="Top" Margin="5"/>
+            <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding PersonToEdit.Notes, UpdateSourceTrigger=PropertyChanged}" VerticalAlignment="Center" Margin="5" Height="80" TextWrapping="Wrap" AcceptsReturn="True"/>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,20,0,0">
+            <Button Content="Сохранить" IsDefault="True" Command="{Binding SaveChangesCommand}" Width="100" Margin="5"/>
+            <Button Content="Отмена" IsCancel="True" Width="100" Margin="5"/>
+        </StackPanel>
+    </Grid>
 </Window>
 
