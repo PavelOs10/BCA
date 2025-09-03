@@ -99,15 +99,16 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
+            <!-- ~ ~ ~ ИЗМЕНЕНИЕ: Панель статистики перестроена для лучшей читаемости ~ ~ ~ -->
             <Border Grid.Row="0" Margin="5" Padding="5" BorderBrush="LightGray" BorderThickness="1">
                 <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
 
-                    <!-- Левый блок: Статистика по периоду -->
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left">
+                    <!-- Верхняя строка: Фильтр по дате и времени -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left">
                         <TextBlock Text="Статистика за период:" FontWeight="Bold" VerticalAlignment="Center"/>
                         <DatePicker SelectedDate="{Binding DashboardStartDate}" Margin="5,0" VerticalAlignment="Center"/>
                         <xctk:TimePicker Value="{Binding DashboardStartTime}" Format="ShortTime" Margin="0,0,5,0" VerticalAlignment="Center"/>
@@ -115,35 +116,46 @@
                         <DatePicker SelectedDate="{Binding DashboardEndDate}" Margin="5,0" VerticalAlignment="Center"/>
                         <xctk:TimePicker Value="{Binding DashboardEndTime}" Format="ShortTime" Margin="0,0,5,0" VerticalAlignment="Center"/>
                         <Button Content="Применить" Command="{Binding UpdateAllDashboardStatsCommand}" Margin="5,0" Padding="5,0"/>
-                        <Separator Margin="10,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
-                        <TextBlock Text="Въехало:" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding EnteredPersonsCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="чел. /" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding EnteredVehiclesCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="тс" VerticalAlignment="Center"/>
-                        <Separator Margin="10,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
-                        <TextBlock Text="Выехало:" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding ExitedPersonsCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="чел. /" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding ExitedVehiclesCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="тс" VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <!-- Правый блок: Общая статистика -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <!-- Нижняя строка: Сводные данные -->
+                    <WrapPanel Grid.Row="1" Margin="0,8,0,0">
+                        <!-- Статистика за период -->
+                        <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
+                            <TextBlock Text="Въехало:" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding EnteredPersonsCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="чел. /" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding EnteredVehiclesCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="тс" VerticalAlignment="Center"/>
+                        </StackPanel>
                         <Separator Margin="10,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
-                        <TextBlock Text="В погранзоне:" VerticalAlignment="Center" FontWeight="Bold"/>
-                        <TextBlock Text="{Binding PersonsInZoneCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center" Foreground="Blue"/>
-                        <TextBlock Text="чел. /" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding VehiclesInZoneCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center" Foreground="Blue"/>
-                        <TextBlock Text="тс" VerticalAlignment="Center"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
+                            <TextBlock Text="Выехало:" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding ExitedPersonsCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="чел. /" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding ExitedVehiclesCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="тс" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- Общая статистика -->
                         <Separator Margin="10,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
-                        <TextBlock Text="В розыске:" VerticalAlignment="Center" FontWeight="Bold"/>
-                        <TextBlock Text="{Binding WantedPersonsTotalCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center" Foreground="Red"/>
-                        <TextBlock Text="чел." VerticalAlignment="Center"/>
-                    </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
+                            <TextBlock Text="В погранзоне:" VerticalAlignment="Center" FontWeight="Bold"/>
+                            <TextBlock Text="{Binding PersonsInZoneCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center" Foreground="Blue"/>
+                            <TextBlock Text="чел. /" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding VehiclesInZoneCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center" Foreground="Blue"/>
+                            <TextBlock Text="тс" VerticalAlignment="Center"/>
+                        </StackPanel>
+                        <Separator Margin="10,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
+                            <TextBlock Text="В розыске:" VerticalAlignment="Center" FontWeight="Bold"/>
+                            <TextBlock Text="{Binding WantedPersonsTotalCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center" Foreground="Red"/>
+                            <TextBlock Text="чел." VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </WrapPanel>
                 </Grid>
             </Border>
+            <!-- ~ ~ ~ КОНЕЦ ИЗМЕНЕНИЯ ~ ~ ~ -->
 
             <Grid Grid.Row="1">
                 <Grid.RowDefinitions>
@@ -248,4 +260,3 @@
         </Grid>
     </DockPanel>
 </Window>
-
