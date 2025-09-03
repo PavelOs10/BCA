@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Вход в систему 'Контрольный пункт'" Height="206" Width="400"
+        Title="Вход в систему 'Контрольный пункт'" Height="233" Width="400"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
 	<Grid Margin="15">
 		<Grid.RowDefinitions>

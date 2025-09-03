@@ -2,27 +2,45 @@
 
 	<PropertyGroup>
 		<OutputType>WinExe</OutputType>
-		<TargetFramework>net8.0-windows</TargetFramework>
+		<TargetFramework>net6.0-windows</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<UseWPF>true</UseWPF>
+		<ApplicationIcon>icon.ico</ApplicationIcon>
+		<!-- Указываем поддерживаемые версии Windows для .NET 6 -->
+		<SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
 	</PropertyGroup>
 
-	<ItemGroup>
-		<PackageReference Include="ClosedXML" Version="0.105.0" />
-		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
-		<PackageReference Include="Dapper" Version="2.1.66" />
-		<PackageReference Include="DocX" Version="4.0.25105.5786" />
-		<PackageReference Include="Extended.Wpf.Toolkit" Version="4.7.25104.5739" />
-		<PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.8" />
-		<PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.135" />
-
-		<!-- 
-      ЗАМЕНА БИБЛИОТЕКИ:
-      Полностью удалены все пакеты LiveCharts и SkiaSharp.
-      Добавлена новая библиотека для построения графиков - OxyPlot.
-      Это надежная альтернатива, которая должна решить проблему совместимости.
+	<!-- 
+      Свойства для публикации. Эти настройки позволяют легко создавать
+      автономные сборки для x64 и x86 систем, которые будут включать
+      среду выполнения .NET. Это решает проблему отсутствия установленного
+      .NET на целевой машине, но все еще требует обновлений самой Windows 7.
     -->
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<!-- Для 64-битной версии -->
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<!-- Для 32-битной версии используйте win-x86 -->
+		<!-- <RuntimeIdentifier>win-x86</RuntimeIdentifier> -->
+
+		<PublishSingleFile>false</PublishSingleFile>
+		<SelfContained>true</SelfContained>
+		<PublishReadyToRun>true</PublishReadyToRun>
+	</PropertyGroup>
+
+
+	<ItemGroup>
+		<Content Include="icon.ico" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="ClosedXML" Version="0.102.2" />
+		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+		<PackageReference Include="Dapper" Version="2.1.35" />
+		<PackageReference Include="DocX" Version="2.5.0" />
+		<PackageReference Include="Extended.Wpf.Toolkit" Version="4.6.0" />
+		<PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.0" />
+		<PackageReference Include="Microsoft.Xaml.Behaviors.Wpf" Version="1.1.77" />
 		<PackageReference Include="OxyPlot.Wpf" Version="2.1.2" />
 	</ItemGroup>
 

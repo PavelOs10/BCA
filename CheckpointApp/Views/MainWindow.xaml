@@ -9,7 +9,7 @@
         xmlns:helpers="clr-namespace:CheckpointApp.Helpers"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type={x:Type viewmodels:MainViewModel}, IsDesignTimeCreatable=False}"
-        Title="{Binding WindowTitle}" Height="800" Width="1280"
+        Title="{Binding WindowTitle}" Height="800" Width="1388"
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>

@@ -4,7 +4,7 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Регистрация нового оператора" Height="182" Width="400"
+        Title="Регистрация нового оператора" Height="197" Width="400"
         WindowStartupLocation="CenterScreen" ResizeMode="NoResize">
 	<Grid Margin="15">
 		<Grid.RowDefinitions>

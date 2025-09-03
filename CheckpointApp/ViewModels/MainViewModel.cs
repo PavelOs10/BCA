@@ -146,14 +146,25 @@ namespace CheckpointApp.ViewModels
                 return false;
             }
 
+            // --- ИЗМЕНЕНИЕ: Расширенная логика живого поиска ---
             var lastNameFilter = CurrentPerson.LastName?.Trim();
             var firstNameFilter = CurrentPerson.FirstName?.Trim();
+            var patronymicFilter = CurrentPerson.Patronymic?.Trim();
+            var citizenshipFilter = CurrentPerson.Citizenship?.Trim();
             var passportFilter = CurrentPerson.PassportData?.Trim();
 
             bool baseFilterMatch = true;
-            if (!string.IsNullOrWhiteSpace(lastNameFilter)) baseFilterMatch &= crossing.FullName.StartsWith(lastNameFilter, StringComparison.OrdinalIgnoreCase);
-            if (!string.IsNullOrWhiteSpace(firstNameFilter)) baseFilterMatch &= crossing.FullName.Contains(firstNameFilter, StringComparison.OrdinalIgnoreCase);
-            if (!string.IsNullOrWhiteSpace(passportFilter)) baseFilterMatch &= crossing.PersonPassport.StartsWith(passportFilter, StringComparison.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(lastNameFilter))
+                baseFilterMatch &= crossing.FullName.Contains(lastNameFilter, StringComparison.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(firstNameFilter))
+                baseFilterMatch &= crossing.FullName.Contains(firstNameFilter, StringComparison.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(patronymicFilter))
+                baseFilterMatch &= crossing.FullName.Contains(patronymicFilter, StringComparison.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(citizenshipFilter))
+                baseFilterMatch &= (crossing.Citizenship ?? string.Empty).Contains(citizenshipFilter, StringComparison.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(passportFilter))
+                baseFilterMatch &= crossing.PersonPassport.StartsWith(passportFilter, StringComparison.OrdinalIgnoreCase);
+            // --- КОНЕЦ ИЗМЕНЕНИЯ ---
 
             if (!string.IsNullOrEmpty(FilterCitizenship) && FilterCitizenship != "ВСЕ")
                 baseFilterMatch &= (crossing.Citizenship ?? "").Equals(FilterCitizenship, StringComparison.OrdinalIgnoreCase);
@@ -170,7 +181,12 @@ namespace CheckpointApp.ViewModels
         #region Property Change Handlers
         private async void OnCurrentPersonPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(Person.LastName) || e.PropertyName == nameof(Person.FirstName) || e.PropertyName == nameof(Person.PassportData))
+            // --- ИЗМЕНЕНИЕ: Добавлены поля для отслеживания живого поиска ---
+            if (e.PropertyName == nameof(Person.LastName) ||
+                e.PropertyName == nameof(Person.FirstName) ||
+                e.PropertyName == nameof(Person.Patronymic) ||
+                e.PropertyName == nameof(Person.Citizenship) ||
+                e.PropertyName == nameof(Person.PassportData))
             {
                 _filterCts?.Cancel();
                 _filterCts = new CancellationTokenSource();
@@ -769,7 +785,7 @@ namespace CheckpointApp.ViewModels
         [RelayCommand]
         private void ShowAboutInfo()
         {
-            MessageBox.Show("Версия 4.1 (с исправлениями), Разработчик ОПО Ленингор", "О программе", MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show("V. 4.3 (c#), Разработчик ОПО Ленингор", "О программе", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         [RelayCommand]
@@ -841,4 +857,3 @@ namespace CheckpointApp.ViewModels
         #endregion
     }
 }
-
