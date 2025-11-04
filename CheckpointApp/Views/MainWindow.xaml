@@ -82,6 +82,19 @@
             </ToolBar>
         </ToolBarTray>
 
+        <Border DockPanel.Dock="Top" 
+                Visibility="{Binding IsPassengerEntryMode, Converter={StaticResource BooleanToVisibilityConverter}}"
+                Background="#FFF5E1" BorderBrush="#FFDBAF" BorderThickness="1" Margin="5" Padding="5">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Text="РЕЖИМ ДОБАВЛЕНИЯ ПАССАЖИРОВ" FontWeight="Bold" Foreground="#D9480F" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding ActiveDriverCrossing.FullName}" Margin="10,0,5,0" VerticalAlignment="Center"/>
+                <TextBlock Text="на ТС:" VerticalAlignment="Center"/>
+                <TextBlock Text="{Binding ActiveDriverCrossing.VehicleInfo}" FontWeight="Bold" Margin="5,0,20,0" VerticalAlignment="Center"/>
+                <Button Content="Показать пассажиров из прошлой поездки" Command="{Binding ShowPreviousPassengersCommand}" Margin="0,0,10,0"/>
+                <Button Content="ЗАВЕРШИТЬ" Command="{Binding FinishAddingPassengersCommand}" Background="#FFC1C1" FontWeight="Bold"/>
+            </StackPanel>
+        </Border>
+
         <StatusBar DockPanel.Dock="Bottom">
             <StatusBarItem>
                 <TextBlock Text="{Binding StatusMessage}"/>
@@ -99,7 +112,6 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- ~ ~ ~ ИЗМЕНЕНИЕ: Панель статистики перестроена для лучшей читаемости ~ ~ ~ -->
             <Border Grid.Row="0" Margin="5" Padding="5" BorderBrush="LightGray" BorderThickness="1">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -107,7 +119,6 @@
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
 
-                    <!-- Верхняя строка: Фильтр по дате и времени -->
                     <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Left">
                         <TextBlock Text="Статистика за период:" FontWeight="Bold" VerticalAlignment="Center"/>
                         <DatePicker SelectedDate="{Binding DashboardStartDate}" Margin="5,0" VerticalAlignment="Center"/>
@@ -118,9 +129,7 @@
                         <Button Content="Применить" Command="{Binding UpdateAllDashboardStatsCommand}" Margin="5,0" Padding="5,0"/>
                     </StackPanel>
 
-                    <!-- Нижняя строка: Сводные данные -->
                     <WrapPanel Grid.Row="1" Margin="0,8,0,0">
-                        <!-- Статистика за период -->
                         <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
                             <TextBlock Text="Въехало:" VerticalAlignment="Center"/>
                             <TextBlock Text="{Binding EnteredPersonsCount}" FontWeight="Bold" Margin="5,0" VerticalAlignment="Center"/>
@@ -137,7 +146,6 @@
                             <TextBlock Text="тс" VerticalAlignment="Center"/>
                         </StackPanel>
 
-                        <!-- Общая статистика -->
                         <Separator Margin="10,0" Style="{StaticResource {x:Static ToolBar.SeparatorStyleKey}}"/>
                         <StackPanel Orientation="Horizontal" Margin="0,0,20,0">
                             <TextBlock Text="В погранзоне:" VerticalAlignment="Center" FontWeight="Bold"/>
@@ -155,7 +163,6 @@
                     </WrapPanel>
                 </Grid>
             </Border>
-            <!-- ~ ~ ~ КОНЕЦ ИЗМЕНЕНИЯ ~ ~ ~ -->
 
             <Grid Grid.Row="1">
                 <Grid.RowDefinitions>
@@ -163,74 +170,78 @@
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- ФОРМА ВВОДА -->
-                <TabControl Grid.Row="0" Margin="5">
-                    <TabItem Header="Личные данные">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Margin="5">
-                                <Label Content="Фамилия:"/>
-                                <TextBox Text="{Binding CurrentPerson.LastName, UpdateSourceTrigger=PropertyChanged}"/>
-                                <Label Content="Имя:"/>
-                                <TextBox Text="{Binding CurrentPerson.FirstName, UpdateSourceTrigger=PropertyChanged}"/>
-                                <Label Content="Отчество:"/>
-                                <TextBox Text="{Binding CurrentPerson.Patronymic, UpdateSourceTrigger=PropertyChanged}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" Margin="5">
-                                <Label Content="Гражданство:"/>
-                                <ComboBox IsEditable="True" ItemsSource="{Binding AllCitizenships}" Text="{Binding CurrentPerson.Citizenship, UpdateSourceTrigger=PropertyChanged}"/>
-                                <Label Content="Паспортные данные:"/>
-                                <TextBox Text="{Binding CurrentPerson.PassportData, UpdateSourceTrigger=PropertyChanged}"/>
-                                <Label Content="Дата рождения:"/>
-                                <DatePicker SelectedDate="{Binding CurrentPersonDob}"/>
-                            </StackPanel>
-                            <StackPanel Grid.Column="2" Margin="5">
-                                <Label Content="Примечания:"/>
-                                <TextBox Text="{Binding CurrentPerson.Notes}" Height="100" TextWrapping="Wrap" AcceptsReturn="True"/>
-                            </StackPanel>
-                        </Grid>
-                    </TabItem>
-                    <TabItem Header="Детали пересечения">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition/>
-                                <ColumnDefinition/>
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" Margin="5">
-                                <GroupBox Header="Направление">
-                                    <StackPanel Orientation="Horizontal" Margin="15,5,5,5">
-                                        <RadioButton Content="Въезд" IsChecked="{Binding IsDirectionIn}" Margin="5"/>
-                                        <RadioButton Content="Выезд" IsChecked="{Binding IsDirectionOut}" Margin="25,5,5,5"/>
+                <StackPanel Grid.Row="0">
+                    <TabControl>
+                        <TabItem Header="Личные данные">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="5">
+                                    <Label Content="Фамилия:"/>
+                                    <TextBox Text="{Binding CurrentPerson.LastName, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <Label Content="Имя:"/>
+                                    <TextBox Text="{Binding CurrentPerson.FirstName, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <Label Content="Отчество:"/>
+                                    <TextBox Text="{Binding CurrentPerson.Patronymic, UpdateSourceTrigger=PropertyChanged}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Margin="5">
+                                    <Label Content="Гражданство:"/>
+                                    <ComboBox IsEditable="True" ItemsSource="{Binding AllCitizenships}" Text="{Binding CurrentPerson.Citizenship, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <Label Content="Паспортные данные:"/>
+                                    <TextBox Text="{Binding CurrentPerson.PassportData, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <Label Content="Дата рождения:"/>
+                                    <DatePicker SelectedDate="{Binding CurrentPersonDob}"/>
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" Margin="5">
+                                    <Label Content="Примечания:"/>
+                                    <TextBox Text="{Binding CurrentPerson.Notes}" Height="100" TextWrapping="Wrap" AcceptsReturn="True"/>
+                                </StackPanel>
+                            </Grid>
+                        </TabItem>
+                        <TabItem Header="Детали пересечения">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition/>
+                                    <ColumnDefinition/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Margin="5">
+                                    <GroupBox Header="Направление" IsEnabled="{Binding IsTravelInfoEditable}">
+                                        <StackPanel Orientation="Horizontal" Margin="15,5,5,5">
+                                            <RadioButton Content="Въезд" IsChecked="{Binding IsDirectionIn}" Margin="5"/>
+                                            <RadioButton Content="Выезд" IsChecked="{Binding IsDirectionOut}" Margin="25,5,5,5"/>
+                                        </StackPanel>
+                                    </GroupBox>
+                                    <Label Content="Тип пересечения:"/>
+                                    <ComboBox ItemsSource="{Binding CrossingTypes}" SelectedItem="{Binding SelectedCrossingType}"/>
+                                    <Label Content="Цель:"/>
+                                    <ComboBox IsEditable="True" ItemsSource="{Binding AllPurposes}" Text="{Binding CurrentCrossing.Purpose, UpdateSourceTrigger=PropertyChanged}"/>
+                                    <Label Content="НП Следования:"/>
+                                    <ComboBox IsEditable="True" ItemsSource="{Binding AllDestinations}" Text="{Binding CurrentCrossing.DestinationTown, UpdateSourceTrigger=PropertyChanged}"/>
+                                </StackPanel>
+                                <GroupBox Grid.Column="1" Header="Транспортное средство" Margin="5" IsEnabled="{Binding IsVehicleInfoEnabled}">
+                                    <StackPanel>
+                                        <Label Content="Марка:"/>
+                                        <ComboBox IsEditable="True" ItemsSource="{Binding AllVehicleMakes}" Text="{Binding CurrentVehicle.Make, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsTravelInfoEditable}"/>
+                                        <Label Content="Гос. номер:"/>
+                                        <TextBox Text="{Binding CurrentVehicle.LicensePlate, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{Binding IsTravelInfoEditable}"/>
                                     </StackPanel>
                                 </GroupBox>
-                                <Label Content="Тип пересечения:"/>
-                                <ComboBox ItemsSource="{Binding CrossingTypes}" SelectedItem="{Binding SelectedCrossingType}"/>
-                                <Label Content="Цель:"/>
-                                <ComboBox IsEditable="True" ItemsSource="{Binding AllPurposes}" Text="{Binding CurrentCrossing.Purpose, UpdateSourceTrigger=PropertyChanged}"/>
-                                <Label Content="НП Следования:"/>
-                                <ComboBox IsEditable="True" ItemsSource="{Binding AllDestinations}" Text="{Binding CurrentCrossing.DestinationTown, UpdateSourceTrigger=PropertyChanged}"/>
-                            </StackPanel>
-                            <GroupBox Grid.Column="1" Header="Транспортное средство" Margin="5" IsEnabled="{Binding IsVehicleInfoEnabled}">
-                                <StackPanel>
-                                    <Label Content="Марка:"/>
-                                    <ComboBox IsEditable="True" ItemsSource="{Binding AllVehicleMakes}" Text="{Binding CurrentVehicle.Make, UpdateSourceTrigger=PropertyChanged}"/>
-                                    <Label Content="Гос. номер:"/>
-                                    <TextBox Text="{Binding CurrentVehicle.LicensePlate, UpdateSourceTrigger=PropertyChanged}"/>
-                                </StackPanel>
-                            </GroupBox>
-                        </Grid>
-                    </TabItem>
-                </TabControl>
+                            </Grid>
+                        </TabItem>
+                    </TabControl>
+                </StackPanel>
 
-                <!-- ЖУРНАЛ ПЕРЕСЕЧЕНИЙ -->
-                <ListView Grid.Row="1" Margin="5" ItemsSource="{Binding CrossingsView}" SelectedItem="{Binding SelectedCrossing}"
+                <ListView Grid.Row="1" Margin="5,0,5,5" ItemsSource="{Binding CrossingsView}" SelectedItem="{Binding SelectedCrossing}"
                           ItemContainerStyle="{StaticResource CrossingListViewItemStyle}">
                     <ListView.ContextMenu>
                         <ContextMenu>
+                            <MenuItem Header="Добавить пассажира" 
+                                      Command="{Binding AddPassengerCommand}"
+                                      FontWeight="Bold"
+                                      Visibility="{Binding IsDriverSelected, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                             <MenuItem Header="Редактировать личные данные" Command="{Binding EditPersonCommand}"/>
                             <MenuItem Header="Посмотреть историю пересечений" Command="{Binding ShowPersonHistoryCommand}"/>
                         </ContextMenu>
@@ -260,3 +271,4 @@
         </Grid>
     </DockPanel>
 </Window>
+

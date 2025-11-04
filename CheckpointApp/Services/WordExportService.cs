@@ -1,15 +1,15 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using CheckpointApp.Models;
 using Xceed.Document.NET;
-using Xceed.Words.NET; // <-- Используем библиотеку DocX
+using Xceed.Words.NET;
 
 namespace CheckpointApp.Services
 {
     public class WordExportService
     {
-        // Метод выполняется асинхронно в фоновом потоке, чтобы не блокировать UI
         public Task ExportPersonReportAsync(
             Person person,
             IEnumerable<Vehicle> vehicles,
@@ -19,10 +19,8 @@ namespace CheckpointApp.Services
         {
             return Task.Run(() =>
             {
-                // Создаем новый Word-документ в памяти
                 using (var document = DocX.Create(filePath))
                 {
-                    // --- Заголовок документа ---
                     document.InsertParagraph("ЗАПРОС НА ЛИЦО")
                         .Bold()
                         .FontSize(16)
@@ -32,57 +30,51 @@ namespace CheckpointApp.Services
                         .FontSize(10)
                         .Alignment = Alignment.center;
 
-                    document.InsertParagraph(); // Пустая строка для отступа
+                    document.InsertParagraph();
 
-                    // --- Раздел 1: Досье на лицо ---
+                    // --- ИЗМЕНЕНИЕ 1: Замена таблицы на простой текст ---
                     document.InsertParagraph("1. Установочные данные")
                         .Bold()
                         .FontSize(14);
 
-                    var dossierTable = document.AddTable(7, 2);
-                    dossierTable.Design = TableDesign.TableGrid;
-                    dossierTable.Alignment = Alignment.center;
-                    dossierTable.AutoFit = AutoFit.Contents;
+                    // Используем параграфы вместо таблицы для лучшего форматирования
+                    document.InsertParagraph().Append("Фамилия:").Bold().Append($"\t\t{person.LastName}");
+                    document.InsertParagraph().Append("Имя:").Bold().Append($"\t\t\t{person.FirstName}");
+                    document.InsertParagraph().Append("Отчество:").Bold().Append($"\t\t\t{person.Patronymic ?? "-"}");
+                    document.InsertParagraph().Append("Дата рождения:").Bold().Append($"\t\t{person.Dob}");
+                    document.InsertParagraph().Append("Гражданство:").Bold().Append($"\t\t{person.Citizenship}");
+                    document.InsertParagraph().Append("Паспортные данные:").Bold().Append($"\t{person.PassportData}");
+                    document.InsertParagraph().Append("Дополнительная информация:").Bold().Append($"\t{person.Notes ?? "-"}");
 
-                    dossierTable.Rows[0].Cells[0].Paragraphs[0].Append("Фамилия:");
-                    dossierTable.Rows[0].Cells[1].Paragraphs[0].Append(person.LastName);
-                    dossierTable.Rows[1].Cells[0].Paragraphs[0].Append("Имя:");
-                    dossierTable.Rows[1].Cells[1].Paragraphs[0].Append(person.FirstName);
-                    dossierTable.Rows[2].Cells[0].Paragraphs[0].Append("Отчество:");
-                    dossierTable.Rows[2].Cells[1].Paragraphs[0].Append(person.Patronymic ?? "-");
-                    dossierTable.Rows[3].Cells[0].Paragraphs[0].Append("Дата рождения:");
-                    dossierTable.Rows[3].Cells[1].Paragraphs[0].Append(person.Dob);
-                    dossierTable.Rows[4].Cells[0].Paragraphs[0].Append("Гражданство:");
-                    dossierTable.Rows[4].Cells[1].Paragraphs[0].Append(person.Citizenship);
-                    dossierTable.Rows[5].Cells[0].Paragraphs[0].Append("Паспортные данные:");
-                    dossierTable.Rows[5].Cells[1].Paragraphs[0].Append(person.PassportData);
-                    dossierTable.Rows[6].Cells[0].Paragraphs[0].Append("Дополнительная информация:");
-                    dossierTable.Rows[6].Cells[1].Paragraphs[0].Append(person.Notes ?? "-");
-
-                    document.InsertTable(dossierTable);
                     document.InsertParagraph();
+                    // --- КОНЕЦ ИЗМЕНЕНИЯ 1 ---
 
-                    // --- Раздел 2: Транспортные средства ---
                     document.InsertParagraph("2. Использованные транспортные средства")
                         .Bold()
                         .FontSize(14);
 
-                    var vehiclesTable = document.AddTable(vehicles.Count() + 1, 2);
-                    vehiclesTable.Design = TableDesign.TableGrid;
-                    vehiclesTable.Rows[0].Cells[0].Paragraphs[0].Append("Марка").Bold();
-                    vehiclesTable.Rows[0].Cells[1].Paragraphs[0].Append("Гос. номер").Bold();
-
-                    int v_row = 1;
-                    foreach (var vehicle in vehicles)
+                    if (vehicles.Any())
                     {
-                        vehiclesTable.Rows[v_row].Cells[0].Paragraphs[0].Append(vehicle.Make);
-                        vehiclesTable.Rows[v_row].Cells[1].Paragraphs[0].Append(vehicle.LicensePlate);
-                        v_row++;
+                        var vehiclesTable = document.AddTable(vehicles.Count() + 1, 2);
+                        vehiclesTable.Design = TableDesign.TableGrid;
+                        vehiclesTable.Rows[0].Cells[0].Paragraphs[0].Append("Марка").Bold();
+                        vehiclesTable.Rows[0].Cells[1].Paragraphs[0].Append("Гос. номер").Bold();
+
+                        int v_row = 1;
+                        foreach (var vehicle in vehicles)
+                        {
+                            vehiclesTable.Rows[v_row].Cells[0].Paragraphs[0].Append(vehicle.Make);
+                            vehiclesTable.Rows[v_row].Cells[1].Paragraphs[0].Append(vehicle.LicensePlate);
+                            v_row++;
+                        }
+                        document.InsertTable(vehiclesTable);
                     }
-                    document.InsertTable(vehiclesTable);
+                    else
+                    {
+                        document.InsertParagraph("Транспортные средства не использовались.");
+                    }
                     document.InsertParagraph();
 
-                    // --- Раздел 3: История пересечений ---
                     document.InsertParagraph("3. История пересечений")
                         .Bold()
                         .FontSize(14);
@@ -108,28 +100,33 @@ namespace CheckpointApp.Services
                     document.InsertTable(crossingsTable);
                     document.InsertParagraph();
 
-                    // --- Раздел 4: Сводка по товарам ---
                     document.InsertParagraph("4. Сводка по перемещенным товарам и грузам")
                         .Bold()
                         .FontSize(14);
 
-                    var goodsTable = document.AddTable(goodsSummary.Count() + 1, 3);
-                    goodsTable.Design = TableDesign.TableGrid;
-                    goodsTable.Rows[0].Cells[0].Paragraphs[0].Append("Наименование").Bold();
-                    goodsTable.Rows[0].Cells[1].Paragraphs[0].Append("Общее количество").Bold();
-                    goodsTable.Rows[0].Cells[2].Paragraphs[0].Append("Ед. изм.").Bold();
-
-                    int g_row = 1;
-                    foreach (var good in goodsSummary)
+                    if (goodsSummary.Any())
                     {
-                        goodsTable.Rows[g_row].Cells[0].Paragraphs[0].Append(good.Description);
-                        goodsTable.Rows[g_row].Cells[1].Paragraphs[0].Append(good.TotalQuantity.ToString());
-                        goodsTable.Rows[g_row].Cells[2].Paragraphs[0].Append(good.Unit);
-                        g_row++;
-                    }
-                    document.InsertTable(goodsTable);
+                        var goodsTable = document.AddTable(goodsSummary.Count() + 1, 3);
+                        goodsTable.Design = TableDesign.TableGrid;
+                        goodsTable.Rows[0].Cells[0].Paragraphs[0].Append("Наименование").Bold();
+                        goodsTable.Rows[0].Cells[1].Paragraphs[0].Append("Общее количество").Bold();
+                        goodsTable.Rows[0].Cells[2].Paragraphs[0].Append("Ед. изм.").Bold();
 
-                    // Сохраняем документ на диск
+                        int g_row = 1;
+                        foreach (var good in goodsSummary)
+                        {
+                            goodsTable.Rows[g_row].Cells[0].Paragraphs[0].Append(good.Description);
+                            goodsTable.Rows[g_row].Cells[1].Paragraphs[0].Append(good.TotalQuantity.ToString());
+                            goodsTable.Rows[g_row].Cells[2].Paragraphs[0].Append(good.Unit);
+                            g_row++;
+                        }
+                        document.InsertTable(goodsTable);
+                    }
+                    else
+                    {
+                        document.InsertParagraph("Товары и грузы не перемещались.");
+                    }
+
                     document.Save();
                 }
             });

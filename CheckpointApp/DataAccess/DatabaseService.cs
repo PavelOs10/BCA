@@ -30,6 +30,7 @@ namespace CheckpointApp.DataAccess
             using var connection = GetConnection();
             connection.Open();
 
+            // --- ИЗМЕНЕНИЕ 3: Добавлено поле driver_crossing_id для связи пассажиров с водителем ---
             var tableCommands = new[]
             {
                 @"CREATE TABLE IF NOT EXISTS users (
@@ -65,9 +66,11 @@ namespace CheckpointApp.DataAccess
                     operator_id INTEGER NOT NULL,
                     timestamp TEXT NOT NULL,
                     is_deleted BOOLEAN NOT NULL DEFAULT 0,
+                    driver_crossing_id INTEGER,
                     FOREIGN KEY (person_id) REFERENCES persons(id) ON DELETE CASCADE,
                     FOREIGN KEY (vehicle_id) REFERENCES vehicles(id) ON DELETE SET NULL,
-                    FOREIGN KEY (operator_id) REFERENCES users(id)
+                    FOREIGN KEY (operator_id) REFERENCES users(id),
+                    FOREIGN KEY (driver_crossing_id) REFERENCES crossings(id) ON DELETE SET NULL
                 );",
                 @"CREATE TABLE IF NOT EXISTS goods (
                     id INTEGER PRIMARY KEY,
@@ -102,15 +105,16 @@ namespace CheckpointApp.DataAccess
                 connection.Execute(command);
             }
 
-            var pragmaCommand = "PRAGMA table_info(crossings);";
-            var tableInfo = connection.Query<dynamic>(pragmaCommand).ToList();
-            bool columnExists = tableInfo.Any(col => col.name.ToString().Equals("is_deleted", StringComparison.OrdinalIgnoreCase));
-
-            if (!columnExists)
+            var crossingsTableInfo = connection.Query<dynamic>("PRAGMA table_info(crossings);").ToList();
+            if (!crossingsTableInfo.Any(col => col.name.ToString().Equals("is_deleted", StringComparison.OrdinalIgnoreCase)))
             {
-                var alterCommand = "ALTER TABLE crossings ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT 0;";
-                connection.Execute(alterCommand);
+                connection.Execute("ALTER TABLE crossings ADD COLUMN is_deleted BOOLEAN NOT NULL DEFAULT 0;");
             }
+            if (!crossingsTableInfo.Any(col => col.name.ToString().Equals("driver_crossing_id", StringComparison.OrdinalIgnoreCase)))
+            {
+                connection.Execute("ALTER TABLE crossings ADD COLUMN driver_crossing_id INTEGER REFERENCES crossings(id) ON DELETE SET NULL;");
+            }
+            // --- КОНЕЦ ИЗМЕНЕНИЯ 3 ---
         }
 
         #region User Methods
@@ -180,6 +184,7 @@ namespace CheckpointApp.DataAccess
         #endregion
 
         #region Crossing Methods
+        // --- ИЗМЕНЕНИЕ 3: Добавлено поле driver_crossing_id в выборку ---
         public async Task<IEnumerable<Crossing>> GetAllCrossingsAsync()
         {
             using var connection = GetConnection();
@@ -195,6 +200,7 @@ namespace CheckpointApp.DataAccess
                     c.operator_id AS OperatorId,
                     c.timestamp AS Timestamp,
                     c.is_deleted as IsDeleted,
+                    c.driver_crossing_id as DriverCrossingId,
                     p.last_name || ' ' || p.first_name || ' ' || IFNULL(p.patronymic, '') AS FullName,
                     p.dob as PersonDob,
                     p.passport_data as PersonPassport,
@@ -209,7 +215,6 @@ namespace CheckpointApp.DataAccess
             return await connection.QueryAsync<Crossing>(sql);
         }
 
-        // --- ИСПРАВЛЕНИЕ 1: Новый метод для получения одного пересечения по ID ---
         public async Task<Crossing?> GetCrossingByIdAsync(int crossingId)
         {
             using var connection = GetConnection();
@@ -225,6 +230,7 @@ namespace CheckpointApp.DataAccess
                     c.operator_id AS OperatorId,
                     c.timestamp AS Timestamp,
                     c.is_deleted as IsDeleted,
+                    c.driver_crossing_id as DriverCrossingId,
                     p.last_name || ' ' || p.first_name || ' ' || IFNULL(p.patronymic, '') AS FullName,
                     p.dob as PersonDob,
                     p.passport_data as PersonPassport,
@@ -238,7 +244,7 @@ namespace CheckpointApp.DataAccess
                 WHERE c.id = @CrossingId";
             return await connection.QuerySingleOrDefaultAsync<Crossing>(sql, new { CrossingId = crossingId });
         }
-
+        // --- КОНЕЦ ИЗМЕНЕНИЯ 3 ---
 
         public async Task<IEnumerable<Crossing>> GetAllCrossingsByPersonIdAsync(int personId)
         {
@@ -256,12 +262,13 @@ namespace CheckpointApp.DataAccess
             return await connection.QueryAsync<Crossing>(sql, new { PersonId = personId });
         }
 
+        // --- ИЗМЕНЕНИЕ 3: Добавлено поле driver_crossing_id в запрос ---
         public async Task<int> CreateCrossingAsync(Crossing crossing)
         {
             using var connection = GetConnection();
             var sql = @"
-                INSERT INTO crossings (person_id, vehicle_id, direction, purpose, destination_town, crossing_type, operator_id, timestamp)
-                VALUES (@PersonId, @VehicleId, @Direction, @Purpose, @DestinationTown, @CrossingType, @OperatorId, @Timestamp)
+                INSERT INTO crossings (person_id, vehicle_id, direction, purpose, destination_town, crossing_type, operator_id, timestamp, driver_crossing_id)
+                VALUES (@PersonId, @VehicleId, @Direction, @Purpose, @DestinationTown, @CrossingType, @OperatorId, @Timestamp, @DriverCrossingId)
                 RETURNING id;";
 
             var parameters = new DynamicParameters();
@@ -273,6 +280,7 @@ namespace CheckpointApp.DataAccess
             parameters.Add("CrossingType", crossing.CrossingType);
             parameters.Add("OperatorId", crossing.OperatorId);
             parameters.Add("Timestamp", crossing.Timestamp);
+            parameters.Add("DriverCrossingId", crossing.DriverCrossingId);
 
             return await connection.ExecuteScalarAsync<int>(sql, parameters);
         }
@@ -336,6 +344,51 @@ namespace CheckpointApp.DataAccess
             using var connection = GetConnection();
             var sql = "SELECT direction AS Direction FROM crossings WHERE is_deleted = 0 AND person_id = @PersonId ORDER BY timestamp DESC LIMIT 1";
             return await connection.QuerySingleOrDefaultAsync<Crossing>(sql, new { PersonId = personId });
+        }
+
+        public async Task<int?> GetPreviousDriverCrossingIdAsync(int driverPersonId, int currentCrossingId)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                SELECT id FROM crossings
+                WHERE person_id = @DriverPersonId
+                  AND crossing_type = 'ВОДИТЕЛЬ'
+                  AND id != @CurrentCrossingId
+                ORDER BY timestamp DESC
+                LIMIT 1;";
+            return await connection.QuerySingleOrDefaultAsync<int?>(sql, new { DriverPersonId = driverPersonId, CurrentCrossingId = currentCrossingId });
+        }
+
+        public async Task<IEnumerable<Crossing>> GetPassengerCrossingsByDriverCrossingIdAsync(int driverCrossingId)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                SELECT
+                    c.id AS ID,
+                    c.person_id AS PersonId,
+                    c.vehicle_id AS VehicleId,
+                    c.direction AS Direction,
+                    c.purpose AS Purpose,
+                    c.destination_town AS DestinationTown,
+                    c.crossing_type AS CrossingType,
+                    c.operator_id AS OperatorId,
+                    c.timestamp AS Timestamp,
+                    c.is_deleted as IsDeleted,
+                    c.driver_crossing_id as DriverCrossingId,
+                    p.last_name || ' ' || p.first_name || ' ' || IFNULL(p.patronymic, '') AS FullName,
+                    p.dob as PersonDob,
+                    p.passport_data as PersonPassport,
+                    p.citizenship AS Citizenship,
+                    IFNULL(v.make || '/' || v.license_plate, '') AS VehicleInfo,
+                    u.username AS OperatorUsername
+                FROM crossings c
+                JOIN persons p ON c.person_id = p.id
+                LEFT JOIN vehicles v ON c.vehicle_id = v.id
+                JOIN users u ON c.operator_id = u.id
+                WHERE c.driver_crossing_id = @DriverCrossingId
+                  AND c.crossing_type = 'ПАССАЖИР'
+                ORDER BY p.last_name, p.first_name;";
+            return await connection.QueryAsync<Crossing>(sql, new { DriverCrossingId = driverCrossingId });
         }
         #endregion
 
@@ -434,7 +487,6 @@ namespace CheckpointApp.DataAccess
         public async Task<bool> UpdatePersonAsync(Person person)
         {
             using var connection = GetConnection();
-            // --- ИСПРАВЛЕНИЕ 4: Добавлено поле passport_data в запрос на обновление ---
             var sql = @"
                 UPDATE persons SET
                     last_name = @LastName,
@@ -646,7 +698,7 @@ namespace CheckpointApp.DataAccess
         {
             using var connection = GetConnection();
             var sql = @"
-                WITH LastCrossing AS (
+                WITH LastPersonCrossing AS (
                     SELECT
                         person_id,
                         MAX(timestamp) AS last_timestamp
@@ -663,36 +715,78 @@ namespace CheckpointApp.DataAccess
                     c.timestamp AS Timestamp,
                     IFNULL(v.make || '/' || v.license_plate, 'Пешком') AS VehicleInfo
                 FROM crossings c
-                JOIN LastCrossing lc ON c.person_id = lc.person_id AND c.timestamp = lc.last_timestamp
+                JOIN LastPersonCrossing lpc ON c.person_id = lpc.person_id AND c.timestamp = lpc.last_timestamp
                 JOIN persons p ON c.person_id = p.id
                 LEFT JOIN vehicles v ON c.vehicle_id = v.id
                 WHERE c.direction = 'ВЪЕЗД'
-                ORDER BY c.destination_town, c.timestamp DESC;
+                ORDER BY p.last_name, p.first_name;
             ";
             return await connection.QueryAsync<PersonInZone>(sql);
+        }
+
+        public async Task<IEnumerable<VehicleInZone>> GetVehiclesInZoneAsync()
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                WITH LastVehicleCrossing AS (
+                    SELECT
+                        vehicle_id,
+                        MAX(timestamp) AS last_timestamp
+                    FROM crossings
+                    WHERE is_deleted = 0 AND vehicle_id IS NOT NULL
+                    GROUP BY vehicle_id
+                )
+                SELECT
+                    v.make || '/' || v.license_plate AS VehicleInfo,
+                    c.timestamp AS Timestamp,
+                    p.last_name || ' ' || p.first_name || ' ' || IFNULL(p.patronymic, '') AS LastDriverFullName
+                FROM crossings c
+                JOIN LastVehicleCrossing lvc ON c.vehicle_id = lvc.vehicle_id AND c.timestamp = lvc.last_timestamp
+                JOIN vehicles v ON c.vehicle_id = v.id
+                JOIN persons p ON c.person_id = p.id
+                WHERE c.direction = 'ВЪЕЗД'
+                ORDER BY v.make, v.license_plate;
+            ";
+            return await connection.QueryAsync<VehicleInZone>(sql);
         }
 
         public async Task<InZoneStats> GetInZoneStatsAsync()
         {
             using var connection = GetConnection();
-            var sql = @"
-                WITH LastCrossing AS (
+            var personSql = @"
+                WITH LastPersonCrossing AS (
                     SELECT
                         person_id,
-                        vehicle_id,
                         MAX(timestamp) AS last_timestamp
                     FROM crossings
                     WHERE is_deleted = 0
                     GROUP BY person_id
                 )
-                SELECT
-                    COUNT(DISTINCT c.person_id) as PersonCount,
-                    COUNT(DISTINCT c.vehicle_id) as VehicleCount
+                SELECT COUNT(c.person_id)
                 FROM crossings c
-                JOIN LastCrossing lc ON c.person_id = lc.person_id AND c.timestamp = lc.last_timestamp
+                JOIN LastPersonCrossing lpc ON c.person_id = lpc.person_id AND c.timestamp = lpc.last_timestamp
                 WHERE c.direction = 'ВЪЕЗД';
             ";
-            return await connection.QuerySingleOrDefaultAsync<InZoneStats>(sql) ?? new InZoneStats();
+
+            var vehicleSql = @"
+                WITH LastVehicleCrossing AS (
+                    SELECT
+                        vehicle_id,
+                        MAX(timestamp) AS last_timestamp
+                    FROM crossings
+                    WHERE is_deleted = 0 AND vehicle_id IS NOT NULL
+                    GROUP BY vehicle_id
+                )
+                SELECT COUNT(c.vehicle_id)
+                FROM crossings c
+                JOIN LastVehicleCrossing lvc ON c.vehicle_id = lvc.vehicle_id AND c.timestamp = lvc.last_timestamp
+                WHERE c.direction = 'ВЪЕЗД';
+            ";
+
+            var personCount = await connection.ExecuteScalarAsync<int>(personSql);
+            var vehicleCount = await connection.ExecuteScalarAsync<int>(vehicleSql);
+
+            return new InZoneStats { PersonCount = personCount, VehicleCount = vehicleCount };
         }
 
         public async Task<DashboardStats> GetDashboardStatsAsync(DateTime startDate, DateTime endDate)
@@ -717,3 +811,7 @@ namespace CheckpointApp.DataAccess
         #endregion
     }
 }
+
+
+
+

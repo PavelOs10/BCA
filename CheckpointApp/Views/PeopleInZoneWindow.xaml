@@ -4,49 +4,59 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="Лица в погранзоне" Height="700" Width="1000"
+        Title="Лица и транспорт в погранзоне" Height="700" Width="1000"
         WindowStartupLocation="CenterOwner">
-	<DockPanel>
-		<StatusBar DockPanel.Dock="Bottom">
-			<StatusBarItem>
-				<TextBlock Text="{Binding StatusText}"/>
-			</StatusBarItem>
-		</StatusBar>
+    <DockPanel>
+        <StatusBar DockPanel.Dock="Bottom">
+            <StatusBarItem>
+                <TextBlock Text="{Binding StatusText}"/>
+            </StatusBarItem>
+        </StatusBar>
 
-		<ToolBarTray DockPanel.Dock="Top">
-			<ToolBar>
-				<Button Content="Обновить" Command="{Binding LoadDataCommand}" Padding="5"/>
-			</ToolBar>
-		</ToolBarTray>
+        <ToolBarTray DockPanel.Dock="Top">
+            <ToolBar>
+                <Button Content="Обновить" Command="{Binding LoadDataCommand}" Padding="5"/>
+            </ToolBar>
+        </ToolBarTray>
 
-		<ScrollViewer VerticalScrollBarVisibility="Auto">
-			<ItemsControl ItemsSource="{Binding GroupedPersons}">
-				<ItemsControl.ItemTemplate>
-					<DataTemplate>
-						<GroupBox Margin="5" Padding="5">
-							<GroupBox.Header>
-								<StackPanel Orientation="Horizontal">
-									<TextBlock Text="{Binding Key}" FontWeight="Bold" FontSize="14"/>
-									<TextBlock Text="{Binding Value.Count, StringFormat=' (Кол-во: {0})'}" Margin="10,0,0,0"/>
-								</StackPanel>
-							</GroupBox.Header>
-
-							<ListView ItemsSource="{Binding Value}" BorderThickness="0">
-								<ListView.View>
-									<GridView>
-										<GridViewColumn Header="ФИО" DisplayMemberBinding="{Binding FullName}" Width="250"/>
-										<GridViewColumn Header="Дата рожд." DisplayMemberBinding="{Binding Dob}" Width="100"/>
-										<GridViewColumn Header="Паспорт" DisplayMemberBinding="{Binding PassportData}" Width="120"/>
-										<GridViewColumn Header="Гражданство" DisplayMemberBinding="{Binding Citizenship}" Width="120"/>
-										<GridViewColumn Header="Время въезда" DisplayMemberBinding="{Binding Timestamp}" Width="150"/>
-										<GridViewColumn Header="ТС" DisplayMemberBinding="{Binding VehicleInfo}" Width="150"/>
-									</GridView>
-								</ListView.View>
-							</ListView>
-						</GroupBox>
-					</DataTemplate>
-				</ItemsControl.ItemTemplate>
-			</ItemsControl>
-		</ScrollViewer>
-	</DockPanel>
+        <TabControl Margin="5">
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Лица в погранзоне"/>
+                        <TextBlock Text="{Binding PersonsInZone.Count, StringFormat=' ({0})'}" Foreground="Gray"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <ListView ItemsSource="{Binding PersonsInZone}" BorderThickness="0">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="ФИО" DisplayMemberBinding="{Binding FullName}" Width="250"/>
+                            <GridViewColumn Header="Дата рожд." DisplayMemberBinding="{Binding Dob}" Width="100"/>
+                            <GridViewColumn Header="Паспорт" DisplayMemberBinding="{Binding PassportData}" Width="120"/>
+                            <GridViewColumn Header="Гражданство" DisplayMemberBinding="{Binding Citizenship}" Width="120"/>
+                            <GridViewColumn Header="Время въезда" DisplayMemberBinding="{Binding Timestamp}" Width="150"/>
+                            <GridViewColumn Header="Способ въезда (ТС)" DisplayMemberBinding="{Binding VehicleInfo}" Width="150"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </TabItem>
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Транспорт в погранзоне"/>
+                        <TextBlock Text="{Binding VehiclesInZone.Count, StringFormat=' ({0})'}" Foreground="Gray"/>
+                    </StackPanel>
+                </TabItem.Header>
+                <ListView ItemsSource="{Binding VehiclesInZone}" BorderThickness="0">
+                    <ListView.View>
+                        <GridView>
+                            <GridViewColumn Header="ТС (Марка/Номер)" DisplayMemberBinding="{Binding VehicleInfo}" Width="250"/>
+                            <GridViewColumn Header="Время въезда" DisplayMemberBinding="{Binding Timestamp}" Width="150"/>
+                            <GridViewColumn Header="Последний водитель" DisplayMemberBinding="{Binding LastDriverFullName}" Width="250"/>
+                        </GridView>
+                    </ListView.View>
+                </ListView>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
 </Window>

@@ -49,6 +49,9 @@ namespace CheckpointApp.Models
         public string CrossingType { get; set; } = string.Empty;
         public int OperatorId { get; set; }
         public string Timestamp { get; set; } = string.Empty;
+        // --- ИЗМЕНЕНИЕ 3: Добавлено поле для связи пассажира с водителем ---
+        public int? DriverCrossingId { get; set; }
+        // --- КОНЕЦ ИЗМЕНЕНИЯ 3 ---
 
         public string FullName { get; set; } = string.Empty;
         public string PersonDob { get; set; } = string.Empty;
@@ -110,6 +113,13 @@ namespace CheckpointApp.Models
         public string VehicleInfo { get; set; } = string.Empty;
     }
 
+    public class VehicleInZone
+    {
+        public string VehicleInfo { get; set; } = string.Empty;
+        public string Timestamp { get; set; } = string.Empty;
+        public string LastDriverFullName { get; set; } = string.Empty;
+    }
+
     public class DashboardStats
     {
         public int EnteredPersons { get; set; }
@@ -134,10 +144,10 @@ namespace CheckpointApp.Models
         public string Unit { get; set; } = string.Empty;
     }
 
-    // --- НОВАЯ МОДЕЛЬ: Для статистики на панели мониторинга ---
     public class InZoneStats
     {
         public int PersonCount { get; set; }
         public int VehicleCount { get; set; }
     }
 }
+

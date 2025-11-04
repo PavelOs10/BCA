@@ -6,20 +6,24 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using CheckpointApp.DataAccess;
 using CheckpointApp.Models;
+using System.Collections.ObjectModel;
+using System.Windows;
 
 namespace CheckpointApp.ViewModels
 {
-    using GroupedPersonsCollection = Dictionary<string, List<PersonInZone>>;
     public partial class PeopleInZoneViewModel : ObservableObject
     {
         private readonly DatabaseService _databaseService;
-        [ObservableProperty] private GroupedPersonsCollection _groupedPersons;
+        [ObservableProperty] private ObservableCollection<PersonInZone> _personsInZone;
+        [ObservableProperty] private ObservableCollection<VehicleInZone> _vehiclesInZone;
         [ObservableProperty] private string _statusText;
+
         public PeopleInZoneViewModel(DatabaseService databaseService)
         {
             _databaseService = databaseService;
-            _groupedPersons = new GroupedPersonsCollection();
-            _statusText = "";
+            _personsInZone = new ObservableCollection<PersonInZone>();
+            _vehiclesInZone = new ObservableCollection<VehicleInZone>();
+            _statusText = "Загрузка данных...";
             _ = LoadDataAsync();
         }
 
@@ -31,17 +35,24 @@ namespace CheckpointApp.ViewModels
 
         private async Task LoadDataAsync()
         {
-            var persons = await _databaseService.GetPersonsInZoneAsync();
-            var personList = persons.ToList();
+            StatusText = "Загрузка данных...";
+            var personsTask = _databaseService.GetPersonsInZoneAsync();
+            var vehiclesTask = _databaseService.GetVehiclesInZoneAsync();
 
-            // Группируем данные по DestinationTown
-            var grouped = personList
-                .GroupBy(p => p.DestinationTown ?? "НЕ УКАЗАНО")
-                .ToDictionary(g => g.Key, g => g.ToList());
+            await Task.WhenAll(personsTask, vehiclesTask);
 
-            GroupedPersons = new GroupedPersonsCollection(grouped);
+            var personList = (await personsTask).ToList();
+            var vehicleList = (await vehiclesTask).ToList();
 
-            StatusText = $"Всего в погранзоне: {personList.Count} чел. | Обновлено: {DateTime.Now:G}";
+            Application.Current.Dispatcher.Invoke(() => {
+                PersonsInZone.Clear();
+                foreach (var p in personList) PersonsInZone.Add(p);
+
+                VehiclesInZone.Clear();
+                foreach (var v in vehicleList) VehiclesInZone.Add(v);
+
+                StatusText = $"В погранзоне: {personList.Count} чел. и {vehicleList.Count} ТС | Обновлено: {DateTime.Now:G}";
+            });
         }
     }
 }
