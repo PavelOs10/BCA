@@ -60,25 +60,22 @@ namespace CheckpointApp.Services
             return new SecurityCheckResult { IsAllowed = true };
         }
 
-        // --- НОВЫЙ ВСПОМОГАТЕЛЬНЫЙ МЕТОД ДЛЯ НАДЕЖНОГО СРАВНЕНИЯ ДАТ ---
-        private bool AreDatesMatching(string dateStr1, string dateStr2)
+        // --- ИСПРАВЛЕНИЕ: Метод сделан статическим, так как не использует состояние объекта ---
+        private static bool AreDatesMatching(string dateStr1, string dateStr2)
         {
             if (string.IsNullOrWhiteSpace(dateStr1) || string.IsNullOrWhiteSpace(dateStr2))
             {
-                return false; // Если одна из дат пустая, они не совпадают
+                return false;
             }
 
-            // Пытаемся преобразовать строки в даты
             bool success1 = DateTime.TryParse(dateStr1, out var date1);
             bool success2 = DateTime.TryParse(dateStr2, out var date2);
 
             if (success1 && success2)
             {
-                // Если обе даты успешно преобразованы, сравниваем их без учета времени
                 return date1.Date == date2.Date;
             }
 
-            // Если преобразовать не удалось, возвращаемся к простому сравнению строк (на всякий случай)
             return string.Equals(dateStr1.Trim(), dateStr2.Trim(), StringComparison.OrdinalIgnoreCase);
         }
 
@@ -95,7 +92,7 @@ namespace CheckpointApp.Services
                 wp.LastName.Equals(personToCheck.LastName, StringComparison.OrdinalIgnoreCase) &&
                 wp.FirstName.Equals(personToCheck.FirstName, StringComparison.OrdinalIgnoreCase) &&
                 (wp.Patronymic ?? "").Equals((personToCheck.Patronymic ?? ""), StringComparison.OrdinalIgnoreCase) &&
-                AreDatesMatching(wp.Dob, personToCheck.Dob)); // <-- ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД СРАВНЕНИЯ
+                AreDatesMatching(wp.Dob, personToCheck.Dob));
 
             if (exactMatch != null)
             {
@@ -115,7 +112,7 @@ namespace CheckpointApp.Services
                         matches.Add(BuildMatchMessage("Совпадение ФИО", wp));
                     else if (dbNormFirstName == normalizedFirstName && dbNormPatronymic == normalizedPatronymic && !string.IsNullOrEmpty(normalizedPatronymic))
                         matches.Add(BuildMatchMessage("Совпадение Имени и Отчества", wp));
-                    else if (dbNormLastName == normalizedLastName && AreDatesMatching(wp.Dob, personToCheck.Dob)) // <-- ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД СРАВНЕНИЯ
+                    else if (dbNormLastName == normalizedLastName && AreDatesMatching(wp.Dob, personToCheck.Dob))
                         matches.Add(BuildMatchMessage("Совпадение Фамилии и Даты рождения", wp));
                 }
             }
@@ -132,7 +129,8 @@ namespace CheckpointApp.Services
             return new SecurityCheckResult { IsAllowed = true };
         }
 
-        private string BuildMatchMessage(string reason, WantedPerson wp)
+        // --- ИСПРАВЛЕНИЕ: Метод сделан статическим, так как не использует состояние объекта ---
+        private static string BuildMatchMessage(string reason, WantedPerson wp)
         {
             return $"Причина: {reason}\n" +
                    $"ФИО в базе: {wp.LastName} {wp.FirstName} {wp.Patronymic}\n" +
@@ -147,7 +145,7 @@ namespace CheckpointApp.Services
             var match = watchlist.FirstOrDefault(p =>
                 p.LastName.Equals(personToCheck.LastName, StringComparison.OrdinalIgnoreCase) &&
                 p.FirstName.Equals(personToCheck.FirstName, StringComparison.OrdinalIgnoreCase) &&
-                AreDatesMatching(p.Dob, personToCheck.Dob)); // <-- ИСПОЛЬЗУЕМ НОВЫЙ МЕТОД СРАВНЕНИЯ
+                AreDatesMatching(p.Dob, personToCheck.Dob));
 
             if (match != null)
             {

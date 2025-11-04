@@ -508,6 +508,53 @@ namespace CheckpointApp.DataAccess
             var affectedRows = await connection.ExecuteAsync(sql, new { Notes = notes, PersonId = personId });
             return affectedRows > 0;
         }
+        public async Task<IEnumerable<TravelCompanion>> GetTravelCompanionsAsync(int personId)
+        {
+            using var connection = GetConnection();
+            var sql = @"
+                -- 1. Находим все поездки целевого лица (personId), где он был водителем или пассажиром
+                WITH PersonTrips AS (
+                    SELECT 
+                        c.id as TripId, 
+                        c.driver_crossing_id as DriverTripId, 
+                        c.timestamp as TripTimestamp,
+                        c.crossing_type as PersonRole
+                    FROM crossings c
+                    WHERE c.person_id = @PersonId AND c.vehicle_id IS NOT NULL AND c.is_deleted = 0
+                ),
+                -- 2. Определяем ID поездки водителя для каждой поездки целевого лица
+                DriverTripIds AS (
+                    SELECT 
+                        CASE 
+                            WHEN pt.PersonRole = 'ВОДИТЕЛЬ' THEN pt.TripId
+                            ELSE pt.DriverTripId
+                        END as DriverCrossingId,
+                        pt.TripTimestamp
+                    FROM PersonTrips pt
+                )
+                -- 3. Находим все пересечения (и водителей, и пассажиров), связанные с этими поездками,
+                --    ИСКЛЮЧАЯ само целевое лицо
+                SELECT
+                    c.timestamp AS Timestamp,
+                    IFNULL(v.make || '/' || v.license_plate, '') AS VehicleInfo,
+                    c.crossing_type AS Role,
+                    p.last_name || ' ' || p.first_name || ' ' || IFNULL(p.patronymic, '') AS FullName,
+                    p.dob AS Dob
+                FROM crossings c
+                JOIN persons p ON c.person_id = p.id
+                LEFT JOIN vehicles v ON c.vehicle_id = v.id
+                WHERE 
+                    (
+                        c.driver_crossing_id IN (SELECT DriverCrossingId FROM DriverTripIds) OR -- все пассажиры этой поездки
+                        c.id IN (SELECT DriverCrossingId FROM DriverTripIds) -- водитель этой поездки
+                    )
+                    AND c.person_id != @PersonId -- исключаем самого человека
+                    AND c.is_deleted = 0
+                ORDER BY c.timestamp DESC;
+            ";
+
+            return await connection.QueryAsync<TravelCompanion>(sql, new { PersonId = personId });
+        }
 
         public async Task<int> CreateVehicleAsync(Vehicle vehicle)
         {

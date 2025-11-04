@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
@@ -21,6 +22,27 @@ using System.IO;
 
 namespace CheckpointApp.ViewModels
 {
+    public class VehicleCrossingSorter : IComparer
+    {
+        private readonly int _lastDriverCrossingId;
+
+        public VehicleCrossingSorter(int lastDriverCrossingId)
+        {
+            _lastDriverCrossingId = lastDriverCrossingId;
+        }
+
+        public int Compare(object? x, object? y)
+        {
+            if (x is not Crossing crossingX || y is not Crossing crossingY)
+                return 0;
+
+            if (crossingX.ID == _lastDriverCrossingId && crossingY.ID != _lastDriverCrossingId) return -1;
+            if (crossingY.ID == _lastDriverCrossingId && crossingX.ID != _lastDriverCrossingId) return 1;
+
+            return string.Compare(crossingY.Timestamp, crossingX.Timestamp, StringComparison.Ordinal);
+        }
+    }
+
     public partial class MainViewModel : ObservableObject
     {
         private readonly DatabaseService _databaseService;
@@ -47,10 +69,14 @@ namespace CheckpointApp.ViewModels
         [ObservableProperty] private DateTime? _currentPersonDob;
         [ObservableProperty] private Crossing _currentCrossing;
         [ObservableProperty] private Vehicle _currentVehicle;
-        [ObservableProperty] private Crossing? _selectedCrossing;
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsDriverSelected))]
+        private Crossing? _selectedCrossing;
+
         public List<string> CrossingTypes { get; } = new List<string> { "ПЕШКОМ", "ВОДИТЕЛЬ", "ПАССАЖИР" };
         [ObservableProperty][NotifyPropertyChangedFor(nameof(IsVehicleInfoEnabled))] private string _selectedCrossingType;
-        public bool IsVehicleInfoEnabled => SelectedCrossingType == "ВОДИТЕЛЬ" || SelectedCrossingType == "ПАССАЖИР";
+        public bool IsVehicleInfoEnabled => SelectedCrossingType is "ВОДИТЕЛЬ" or "ПАССАЖИР";
         public bool IsDirectionIn { get => CurrentCrossing.Direction == "ВЪЕЗД"; set { if (value) CurrentCrossing.Direction = "ВЪЕЗД"; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirectionOut)); } }
         public bool IsDirectionOut { get => CurrentCrossing.Direction == "ВЫЕЗД"; set { if (value) CurrentCrossing.Direction = "ВЫЕЗД"; OnPropertyChanged(); OnPropertyChanged(nameof(IsDirectionIn)); } }
         #endregion
@@ -97,7 +123,7 @@ namespace CheckpointApp.ViewModels
 
         public bool IsDriverSelected => SelectedCrossing != null && SelectedCrossing.CrossingType == "ВОДИТЕЛЬ" && !SelectedCrossing.IsDeleted;
 
-        private HashSet<int> _previousPassengerCrossingIds = new HashSet<int>();
+        private readonly HashSet<int> _previousPassengerCrossingIds = new();
         private bool _isShowingPreviousPassengers = false;
 
 
@@ -137,7 +163,7 @@ namespace CheckpointApp.ViewModels
             InitializeNewEntry();
         }
 
-        private DateTime GetCombinedDateTime(DateTime date, DateTime time)
+        private static DateTime GetCombinedDateTime(DateTime date, DateTime time)
         {
             return date.Date + time.TimeOfDay;
         }
@@ -184,6 +210,7 @@ namespace CheckpointApp.ViewModels
             var patronymicFilter = CurrentPerson.Patronymic?.Trim();
             var citizenshipFilter = CurrentPerson.Citizenship?.Trim();
             var passportFilter = CurrentPerson.PassportData?.Trim();
+            var licensePlateFilter = CurrentVehicle.LicensePlate?.Trim();
 
             var fullNameParts = crossing.FullName.Split(new[] { ' ' }, 3, StringSplitOptions.RemoveEmptyEntries);
             var crossingLastName = fullNameParts.Length > 0 ? fullNameParts[0] : "";
@@ -205,6 +232,9 @@ namespace CheckpointApp.ViewModels
             if (!string.IsNullOrWhiteSpace(passportFilter) && !crossing.PersonPassport.StartsWith(passportFilter, StringComparison.OrdinalIgnoreCase))
                 return false;
 
+            if (!string.IsNullOrWhiteSpace(licensePlateFilter) && !crossing.VehicleInfo.ToUpper().Contains(licensePlateFilter.ToUpper()))
+                return false;
+
 
             if (!string.IsNullOrEmpty(FilterCitizenship) && FilterCitizenship != "ВСЕ")
                 if (!(crossing.Citizenship ?? "").Equals(FilterCitizenship, StringComparison.OrdinalIgnoreCase)) return false;
@@ -219,22 +249,55 @@ namespace CheckpointApp.ViewModels
         }
 
         #region Property Change Handlers
-        private async void OnCurrentPersonPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        private void OnInputFormPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(Person.LastName) ||
-                e.PropertyName == nameof(Person.FirstName) ||
-                e.PropertyName == nameof(Person.Patronymic) ||
-                e.PropertyName == nameof(Person.Citizenship) ||
-                e.PropertyName == nameof(Person.PassportData))
+            _filterCts?.Cancel();
+            _filterCts = new CancellationTokenSource();
+
+            _ = ApplyFilterAndSortWithDebounce(_filterCts.Token);
+        }
+
+        private async Task ApplyFilterAndSortWithDebounce(CancellationToken token)
+        {
+            try
             {
-                _filterCts?.Cancel();
-                _filterCts = new CancellationTokenSource();
-                try
+                await Task.Delay(300, token);
+
+                Application.Current.Dispatcher.Invoke(() =>
                 {
-                    await Task.Delay(300, _filterCts.Token);
-                    Application.Current.Dispatcher.Invoke(() => CrossingsView.Refresh());
-                }
-                catch (TaskCanceledException) { /* Ignore */ }
+                    CrossingsView.Refresh();
+
+                    if (CrossingsView is not ListCollectionView lcv) return;
+
+                    lcv.CustomSort = null;
+                    lcv.SortDescriptions.Clear();
+
+                    if (!string.IsNullOrWhiteSpace(CurrentVehicle.LicensePlate))
+                    {
+                        var filteredItems = CrossingsView.Cast<Crossing>().ToList();
+                        var lastDriver = filteredItems
+                            .Where(c => c.CrossingType == "ВОДИТЕЛЬ")
+                            .OrderByDescending(c => c.Timestamp)
+                            .FirstOrDefault();
+
+                        if (lastDriver != null)
+                        {
+                            lcv.CustomSort = new VehicleCrossingSorter(lastDriver.ID);
+                        }
+                        else
+                        {
+                            lcv.SortDescriptions.Add(new SortDescription("Timestamp", ListSortDirection.Descending));
+                        }
+                    }
+                    else
+                    {
+                        lcv.SortDescriptions.Add(new SortDescription("Timestamp", ListSortDirection.Descending));
+                    }
+                });
+            }
+            catch (TaskCanceledException)
+            {
+                // Ignored
             }
         }
 
@@ -246,7 +309,12 @@ namespace CheckpointApp.ViewModels
             }
             if (!IsVehicleInfoEnabled)
             {
-                CurrentVehicle = new Vehicle();
+                if (CurrentVehicle != null)
+                {
+                    CurrentVehicle.PropertyChanged -= OnInputFormPropertyChanged;
+                }
+                CurrentVehicle = new();
+                CurrentVehicle.PropertyChanged += OnInputFormPropertyChanged;
             }
         }
 
@@ -259,16 +327,23 @@ namespace CheckpointApp.ViewModels
         {
             if (CurrentPerson != null)
             {
-                CurrentPerson.PropertyChanged -= OnCurrentPersonPropertyChanged;
+                CurrentPerson.PropertyChanged -= OnInputFormPropertyChanged;
+            }
+            if (CurrentVehicle != null)
+            {
+                CurrentVehicle.PropertyChanged -= OnInputFormPropertyChanged;
             }
 
-            CurrentPerson = new Person();
-            CurrentCrossing = new Crossing { Direction = "ВЪЕЗД" };
-            CurrentVehicle = new Vehicle();
+            CurrentPerson = new();
+            CurrentCrossing = new() { Direction = "ВЪЕЗД" };
+            CurrentVehicle = new();
             CurrentPersonDob = null;
             SelectedCrossingType = CrossingTypes[0];
             CurrentCrossing.CrossingType = SelectedCrossingType;
-            CurrentPerson.PropertyChanged += OnCurrentPersonPropertyChanged;
+
+            CurrentPerson.PropertyChanged += OnInputFormPropertyChanged;
+            CurrentVehicle.PropertyChanged += OnInputFormPropertyChanged;
+
             TemporaryGoodsList.Clear();
             StatusMessage = "Готов к работе.";
 
@@ -280,7 +355,15 @@ namespace CheckpointApp.ViewModels
             _isShowingPreviousPassengers = false;
             _previousPassengerCrossingIds.Clear();
 
-            ResetAllFilters();
+            ResetAllFilters(false);
+
+            if (CrossingsView is ListCollectionView lcv)
+            {
+                lcv.CustomSort = null;
+                lcv.SortDescriptions.Clear();
+                lcv.SortDescriptions.Add(new SortDescription("Timestamp", ListSortDirection.Descending));
+            }
+            CrossingsView.Refresh();
         }
 
         public async Task<bool> LoadDataAsync()
@@ -493,7 +576,7 @@ namespace CheckpointApp.ViewModels
                 if (IsVehicleInfoEnabled && !string.IsNullOrWhiteSpace(CurrentVehicle.LicensePlate))
                 {
                     var vehicle = await _databaseService.FindVehicleByLicensePlateAsync(CurrentVehicle.LicensePlate);
-                    vehicleId = vehicle?.ID ?? await _databaseService.CreateVehicleAsync(CurrentVehicle);
+                    vehicleId = vehicle?.Id ?? await _databaseService.CreateVehicleAsync(CurrentVehicle);
                 }
 
                 CurrentCrossing.PersonId = personId;
@@ -657,14 +740,6 @@ namespace CheckpointApp.ViewModels
             }
         }
 
-        [RelayCommand]
-        private void ShowPeriodCrossings()
-        {
-            ResetAllFilters(false);
-            _isDateFilterActive = true;
-            CrossingsView.Refresh();
-            StatusMessage = $"Отображены пересечения за период с {GetCombinedDateTime(DashboardStartDate, DashboardStartTime):g} по {GetCombinedDateTime(DashboardEndDate, DashboardEndTime):g}";
-        }
         #endregion
 
         #region Proactive Security Check Command
@@ -726,7 +801,7 @@ namespace CheckpointApp.ViewModels
         [RelayCommand]
         private async Task UpdateAllDashboardStats()
         {
-            StatusMessage = "Обновление статистики...";
+            StatusMessage = "Обновление статистики и фильтрация журнала...";
             var finalStartDate = GetCombinedDateTime(DashboardStartDate, DashboardStartTime);
             var finalEndDate = GetCombinedDateTime(DashboardEndDate, DashboardEndTime);
 
@@ -750,7 +825,11 @@ namespace CheckpointApp.ViewModels
             WantedPersonsTotalCount = await wantedCountTask;
             WatchlistPersonsTotalCount = await watchlistCountTask;
 
-            StatusMessage = "Статистика обновлена.";
+            ResetAllFilters(false);
+            _isDateFilterActive = true;
+            CrossingsView.Refresh();
+
+            StatusMessage = $"Статистика обновлена. Отображены пересечения за выбранный период.";
         }
 
         [RelayCommand]
@@ -785,7 +864,9 @@ namespace CheckpointApp.ViewModels
                     var crossings = await _databaseService.GetAllCrossingsByPersonIdAsync(person.Id);
                     var goodsSummary = await _databaseService.GetGoodsSummaryByPersonIdAsync(person.Id);
 
-                    await _wordExportService.ExportPersonReportAsync(person, vehicles, crossings, goodsSummary, saveFileDialog.FileName);
+                    var companions = await _databaseService.GetTravelCompanionsAsync(person.Id);
+
+                    await WordExportService.ExportPersonReportAsync(person, vehicles, crossings, goodsSummary, companions, saveFileDialog.FileName);
 
                     StatusMessage = $"Отчет успешно сохранен: {saveFileDialog.FileName}";
                     MessageBox.Show("Отчет успешно сформирован и сохранен.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
@@ -819,7 +900,8 @@ namespace CheckpointApp.ViewModels
                 try
                 {
                     var dataToExport = CrossingsView.Cast<Crossing>().Where(c => !c.IsDeleted).ToList();
-                    await _excelExportService.ExportCrossingsAsync(dataToExport, saveFileDialog.FileName);
+
+                    await ExcelExportService.ExportCrossingsAsync(dataToExport, saveFileDialog.FileName);
                     StatusMessage = $"Экспорт успешно завершен. Файл сохранен: {saveFileDialog.FileName}";
                     MessageBox.Show("Данные успешно экспортированы.", "Успех", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
@@ -840,12 +922,14 @@ namespace CheckpointApp.ViewModels
         private void SwitchUser()
         {
             IsSwitchingUserRequested = true;
+
             Application.Current.MainWindow?.Close();
         }
 
         [RelayCommand]
-        private void Exit()
+        private static void Exit()
         {
+
             Application.Current.MainWindow?.Close();
         }
 
@@ -872,6 +956,8 @@ namespace CheckpointApp.ViewModels
             window.ShowDialog();
             await UpdateAllDashboardStats();
         }
+
+
 
         [RelayCommand]
         private void ManageUsers()
@@ -907,7 +993,7 @@ namespace CheckpointApp.ViewModels
         }
 
         [RelayCommand]
-        private void ShowAboutInfo()
+        private static void ShowAboutInfo()
         {
             MessageBox.Show("V. 4.3 (c#), Разработчик ОПО Ленингор", "О программе", MessageBoxButton.OK, MessageBoxImage.Information);
         }
@@ -935,9 +1021,10 @@ namespace CheckpointApp.ViewModels
                         return;
                     }
 
-                    CurrentPerson.PropertyChanged -= OnCurrentPersonPropertyChanged;
+
+                    CurrentPerson.PropertyChanged -= OnInputFormPropertyChanged;
                     CurrentPerson = personFromDb;
-                    CurrentPerson.PropertyChanged += OnCurrentPersonPropertyChanged;
+                    CurrentPerson.PropertyChanged += OnInputFormPropertyChanged;
 
                     if (DateTime.TryParseExact(personFromDb.Dob, "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dob))
                     {
@@ -948,7 +1035,6 @@ namespace CheckpointApp.ViewModels
                         CurrentPersonDob = null;
                     }
 
-                    // --- ИСПРАВЛЕНИЕ: Явное обновление свойств для UI ---
                     CurrentCrossing.Direction = ActiveDriverCrossing.Direction;
                     CurrentCrossing.DestinationTown = ActiveDriverCrossing.DestinationTown;
                     CurrentCrossing.Purpose = ActiveDriverCrossing.Purpose;
@@ -981,9 +1067,10 @@ namespace CheckpointApp.ViewModels
                         return;
                     }
 
-                    CurrentPerson.PropertyChanged -= OnCurrentPersonPropertyChanged;
+
+                    CurrentPerson.PropertyChanged -= OnInputFormPropertyChanged;
                     CurrentPerson = personFromDb;
-                    CurrentPerson.PropertyChanged += OnCurrentPersonPropertyChanged;
+                    CurrentPerson.PropertyChanged += OnInputFormPropertyChanged;
 
                     if (DateTime.TryParseExact(personFromDb.Dob, "dd.MM.yyyy", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dob))
                     {
@@ -994,16 +1081,19 @@ namespace CheckpointApp.ViewModels
                         CurrentPersonDob = null;
                     }
 
+
+                    CurrentVehicle.PropertyChanged -= OnInputFormPropertyChanged;
                     if (SelectedCrossing.VehicleId.HasValue && !string.IsNullOrWhiteSpace(SelectedCrossing.VehicleInfo) && SelectedCrossing.VehicleInfo.Contains('/'))
                     {
                         var plate = SelectedCrossing.VehicleInfo.Split('/')[1].Trim();
                         var vehicleFromDb = await _databaseService.FindVehicleByLicensePlateAsync(plate);
-                        CurrentVehicle = vehicleFromDb ?? new Vehicle();
+                        CurrentVehicle = vehicleFromDb ?? new();
                     }
                     else
                     {
-                        CurrentVehicle = new Vehicle();
+                        CurrentVehicle = new();
                     }
+                    CurrentVehicle.PropertyChanged += OnInputFormPropertyChanged;
 
                     var newCrossing = new Crossing
                     {
@@ -1036,19 +1126,23 @@ namespace CheckpointApp.ViewModels
         {
             if (ActiveDriverCrossing == null) return;
 
+
             if (CurrentPerson != null)
             {
-                CurrentPerson.PropertyChanged -= OnCurrentPersonPropertyChanged;
+                CurrentPerson.PropertyChanged -= OnInputFormPropertyChanged;
+            }
+            if (CurrentVehicle != null)
+            {
+                CurrentVehicle.PropertyChanged -= OnInputFormPropertyChanged;
             }
 
-            CurrentPerson = new Person();
+            CurrentPerson = new();
             CurrentPersonDob = null;
             TemporaryGoodsList.Clear();
             SecurityCheckStatus = "Данные не проверялись";
             SecurityCheckColor = Brushes.Transparent;
-            CurrentPerson.PropertyChanged += OnCurrentPersonPropertyChanged;
+            CurrentPerson.PropertyChanged += OnInputFormPropertyChanged;
 
-            // --- ИСПРАВЛЕНИЕ: Явное обновление свойств для UI ---
             CurrentCrossing.Direction = ActiveDriverCrossing.Direction;
             CurrentCrossing.Purpose = ActiveDriverCrossing.Purpose;
             CurrentCrossing.DestinationTown = ActiveDriverCrossing.DestinationTown;

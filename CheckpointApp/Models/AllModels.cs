@@ -30,11 +30,11 @@ namespace CheckpointApp.Models
     }
 
     // Модель транспортного средства
-    public class Vehicle
+    public partial class Vehicle : ObservableObject
     {
-        public int ID { get; set; }
-        public string Make { get; set; } = string.Empty;
-        public string LicensePlate { get; set; } = string.Empty;
+        [ObservableProperty] private int _id;
+        [ObservableProperty] private string _make = string.Empty;
+        [ObservableProperty] private string _licensePlate = string.Empty;
     }
 
     // Модель события пересечения границы
@@ -49,9 +49,7 @@ namespace CheckpointApp.Models
         public string CrossingType { get; set; } = string.Empty;
         public int OperatorId { get; set; }
         public string Timestamp { get; set; } = string.Empty;
-        // --- ИЗМЕНЕНИЕ 3: Добавлено поле для связи пассажира с водителем ---
         public int? DriverCrossingId { get; set; }
-        // --- КОНЕЦ ИЗМЕНЕНИЯ 3 ---
 
         public string FullName { get; set; } = string.Empty;
         public string PersonDob { get; set; } = string.Empty;
@@ -148,6 +146,16 @@ namespace CheckpointApp.Models
     {
         public int PersonCount { get; set; }
         public int VehicleCount { get; set; }
+    }
+
+    // --- НОВАЯ МОДЕЛЬ: Для хранения информации о попутчиках ---
+    public class TravelCompanion
+    {
+        public string Timestamp { get; set; } = string.Empty;
+        public string VehicleInfo { get; set; } = string.Empty;
+        public string Role { get; set; } = string.Empty;
+        public string FullName { get; set; } = string.Empty;
+        public string Dob { get; set; } = string.Empty;
     }
 }
 

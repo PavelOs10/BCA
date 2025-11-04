@@ -10,11 +10,13 @@ namespace CheckpointApp.Services
 {
     public class WordExportService
     {
-        public Task ExportPersonReportAsync(
+        // --- ИЗМЕНЕНИЕ: Добавлен параметр companions ---
+        public static Task ExportPersonReportAsync(
             Person person,
             IEnumerable<Vehicle> vehicles,
             IEnumerable<Crossing> crossings,
             IEnumerable<GoodReportItem> goodsSummary,
+            IEnumerable<TravelCompanion> companions,
             string filePath)
         {
             return Task.Run(() =>
@@ -32,12 +34,10 @@ namespace CheckpointApp.Services
 
                     document.InsertParagraph();
 
-                    // --- ИЗМЕНЕНИЕ 1: Замена таблицы на простой текст ---
                     document.InsertParagraph("1. Установочные данные")
                         .Bold()
                         .FontSize(14);
 
-                    // Используем параграфы вместо таблицы для лучшего форматирования
                     document.InsertParagraph().Append("Фамилия:").Bold().Append($"\t\t{person.LastName}");
                     document.InsertParagraph().Append("Имя:").Bold().Append($"\t\t\t{person.FirstName}");
                     document.InsertParagraph().Append("Отчество:").Bold().Append($"\t\t\t{person.Patronymic ?? "-"}");
@@ -47,7 +47,6 @@ namespace CheckpointApp.Services
                     document.InsertParagraph().Append("Дополнительная информация:").Bold().Append($"\t{person.Notes ?? "-"}");
 
                     document.InsertParagraph();
-                    // --- КОНЕЦ ИЗМЕНЕНИЯ 1 ---
 
                     document.InsertParagraph("2. Использованные транспортные средства")
                         .Bold()
@@ -79,25 +78,33 @@ namespace CheckpointApp.Services
                         .Bold()
                         .FontSize(14);
 
-                    var crossingsTable = document.AddTable(crossings.Count() + 1, 5);
-                    crossingsTable.Design = TableDesign.TableGrid;
-                    crossingsTable.Rows[0].Cells[0].Paragraphs[0].Append("Дата и время").Bold();
-                    crossingsTable.Rows[0].Cells[1].Paragraphs[0].Append("Направление").Bold();
-                    crossingsTable.Rows[0].Cells[2].Paragraphs[0].Append("Тип").Bold();
-                    crossingsTable.Rows[0].Cells[3].Paragraphs[0].Append("Цель").Bold();
-                    crossingsTable.Rows[0].Cells[4].Paragraphs[0].Append("НП Следования").Bold();
-
-                    int c_row = 1;
-                    foreach (var crossing in crossings)
+                    if (crossings.Any())
                     {
-                        crossingsTable.Rows[c_row].Cells[0].Paragraphs[0].Append(crossing.Timestamp);
-                        crossingsTable.Rows[c_row].Cells[1].Paragraphs[0].Append(crossing.Direction);
-                        crossingsTable.Rows[c_row].Cells[2].Paragraphs[0].Append(crossing.CrossingType);
-                        crossingsTable.Rows[c_row].Cells[3].Paragraphs[0].Append(crossing.Purpose ?? "-");
-                        crossingsTable.Rows[c_row].Cells[4].Paragraphs[0].Append(crossing.DestinationTown ?? "-");
-                        c_row++;
+                        var crossingsTable = document.AddTable(crossings.Count() + 1, 5);
+                        crossingsTable.Design = TableDesign.TableGrid;
+                        crossingsTable.Rows[0].Cells[0].Paragraphs[0].Append("Дата и время").Bold();
+                        crossingsTable.Rows[0].Cells[1].Paragraphs[0].Append("Направление").Bold();
+                        crossingsTable.Rows[0].Cells[2].Paragraphs[0].Append("Тип").Bold();
+                        crossingsTable.Rows[0].Cells[3].Paragraphs[0].Append("Цель").Bold();
+                        crossingsTable.Rows[0].Cells[4].Paragraphs[0].Append("НП Следования").Bold();
+
+                        int c_row = 1;
+                        foreach (var crossing in crossings)
+                        {
+                            crossingsTable.Rows[c_row].Cells[0].Paragraphs[0].Append(crossing.Timestamp);
+                            crossingsTable.Rows[c_row].Cells[1].Paragraphs[0].Append(crossing.Direction);
+                            crossingsTable.Rows[c_row].Cells[2].Paragraphs[0].Append(crossing.CrossingType);
+                            crossingsTable.Rows[c_row].Cells[3].Paragraphs[0].Append(crossing.Purpose ?? "-");
+                            crossingsTable.Rows[c_row].Cells[4].Paragraphs[0].Append(crossing.DestinationTown ?? "-");
+                            c_row++;
+                        }
+                        document.InsertTable(crossingsTable);
                     }
-                    document.InsertTable(crossingsTable);
+                    else
+                    {
+                        document.InsertParagraph("Пересечения не зафиксированы.");
+                    }
+
                     document.InsertParagraph();
 
                     document.InsertParagraph("4. Сводка по перемещенным товарам и грузам")
@@ -127,9 +134,71 @@ namespace CheckpointApp.Services
                         document.InsertParagraph("Товары и грузы не перемещались.");
                     }
 
+                    document.InsertParagraph();
+
+                    // --- НОВЫЙ РАЗДЕЛ: Таблица совместных поездок ---
+                    document.InsertParagraph("5. Совместные поездки (Водители и Пассажиры)")
+                        .Bold()
+                        .FontSize(14);
+
+                    var companionsList = companions.ToList();
+                    if (companionsList.Any())
+                    {
+                        var companionsTable = document.AddTable(companionsList.Count() + 1, 5);
+                        companionsTable.Design = TableDesign.TableGrid;
+                        companionsTable.Rows[0].Cells[0].Paragraphs[0].Append("Дата поездки").Bold();
+                        companionsTable.Rows[0].Cells[1].Paragraphs[0].Append("ТС").Bold();
+                        companionsTable.Rows[0].Cells[2].Paragraphs[0].Append("Роль в поездке").Bold();
+                        companionsTable.Rows[0].Cells[3].Paragraphs[0].Append("ФИО").Bold();
+                        companionsTable.Rows[0].Cells[4].Paragraphs[0].Append("Дата рождения").Bold();
+
+                        int comp_row = 1;
+                        foreach (var companion in companionsList)
+                        {
+                            companionsTable.Rows[comp_row].Cells[0].Paragraphs[0].Append(companion.Timestamp);
+                            companionsTable.Rows[comp_row].Cells[1].Paragraphs[0].Append(companion.VehicleInfo);
+                            companionsTable.Rows[comp_row].Cells[2].Paragraphs[0].Append(companion.Role);
+                            companionsTable.Rows[comp_row].Cells[3].Paragraphs[0].Append(companion.FullName);
+                            companionsTable.Rows[comp_row].Cells[4].Paragraphs[0].Append(companion.Dob);
+                            comp_row++;
+                        }
+                        document.InsertTable(companionsTable);
+                    }
+                    else
+                    {
+                        document.InsertParagraph("Совместных поездок с другими лицами не зафиксировано.");
+                    }
+
+                    document.InsertParagraph();
+
+                    // --- НОВЫЙ РАЗДЕЛ: Список связанных лиц ---
+                    document.InsertParagraph("6. Связанные лица (сводка)")
+                        .Bold()
+                        .FontSize(14);
+
+                    var associatedPersons = companionsList
+                        .GroupBy(c => new { c.FullName, c.Dob })
+                        .Select(g => g.Key)
+                        .OrderBy(p => p.FullName)
+                        .ToList();
+
+                    if (associatedPersons.Any())
+                    {
+                        foreach (var associatedPerson in associatedPersons)
+                        {
+                            document.InsertParagraph($"\u2022 {associatedPerson.FullName} ({associatedPerson.Dob})");
+                        }
+                    }
+                    else
+                    {
+                        document.InsertParagraph("Связанных лиц не найдено.");
+                    }
+
+
                     document.Save();
                 }
             });
         }
     }
 }
+

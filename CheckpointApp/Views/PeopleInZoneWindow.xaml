@@ -24,10 +24,24 @@
                 <TabItem.Header>
                     <StackPanel Orientation="Horizontal">
                         <TextBlock Text="Лица в погранзоне"/>
-                        <TextBlock Text="{Binding PersonsInZone.Count, StringFormat=' ({0})'}" Foreground="Gray"/>
+                        <!-- ИЗМЕНЕНИЕ: Исправлен формат комментария -->
+                        <TextBlock Text="{Binding PersonsInZone.SourceCollection.Count, StringFormat=' ({0})'}" Foreground="Gray"/>
                     </StackPanel>
                 </TabItem.Header>
                 <ListView ItemsSource="{Binding PersonsInZone}" BorderThickness="0">
+                    <!-- ИЗМЕНЕНИЕ: Исправлен формат комментария -->
+                    <ListView.GroupStyle>
+                        <GroupStyle>
+                            <GroupStyle.HeaderTemplate>
+                                <DataTemplate>
+                                    <Border Background="LightGray" CornerRadius="3" Padding="5" Margin="0,5,0,2">
+                                        <TextBlock FontWeight="Bold" FontSize="14" 
+                                                   Text="{Binding Name, FallbackValue='НП не указан'}"/>
+                                    </Border>
+                                </DataTemplate>
+                            </GroupStyle.HeaderTemplate>
+                        </GroupStyle>
+                    </ListView.GroupStyle>
                     <ListView.View>
                         <GridView>
                             <GridViewColumn Header="ФИО" DisplayMemberBinding="{Binding FullName}" Width="250"/>
@@ -60,3 +74,4 @@
         </TabControl>
     </DockPanel>
 </Window>
+
